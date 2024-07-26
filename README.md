@@ -11,7 +11,7 @@ The utility methods in this library compresses the data and decompresses into Ge
 Install this library from NPM for usage with modules:
 
 ```console
-npm install @maplibre/polyline
+npm install @aws-geospatial/polyline
 ```
 
 You can also import the Javascript file for usage directly in the browser.
