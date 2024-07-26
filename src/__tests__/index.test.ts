@@ -1,5 +1,5 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT-0
 
 import * as polyline from "..";
 import { LineString, Polygon } from "geojson";
@@ -282,7 +282,9 @@ describe.each([
         [0, 10],
         [0, 0],
       ];
-      const encodedLine = polyline.encodeFromLngLatArray(counterclockwiseCoords);
+      const encodedLine = polyline.encodeFromLngLatArray(
+        counterclockwiseCoords,
+      );
       const result = polyline.decodeToPolygon([encodedLine]);
       expect(result.coordinates[0]).toEqual(counterclockwiseCoords);
     });
@@ -555,7 +557,9 @@ describe("Decoding 3D data with FlexiblePolyline produces the expected results",
         const encodedRings = [];
         for (const ring of ringCoords) {
           encodedRings.push(
-            polyline.encodeFromLngLatArray(ring, { thirdDimension: thirdDimension }),
+            polyline.encodeFromLngLatArray(ring, {
+              thirdDimension: thirdDimension,
+            }),
           );
         }
         const result = polyline.decodeToPolygon(encodedRings);
@@ -603,7 +607,9 @@ describe("Decoding 3D data with FlexiblePolyline produces the expected results",
         const encodedRings = [];
         for (const ring of ringCoords) {
           encodedRings.push(
-            polyline.encodeFromLngLatArray(ring, { thirdDimension: thirdDimension }),
+            polyline.encodeFromLngLatArray(ring, {
+              thirdDimension: thirdDimension,
+            }),
           );
         }
         const result = polyline.decodeToPolygonFeature(encodedRings);

@@ -1,5 +1,5 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT-0
 
 import {
   ThirdDimension,
@@ -123,7 +123,9 @@ export function encodeFromLngLatArray(
  *   ]
  * ```
  */
-export function decodeToLngLatArray(compressedData: string): Array<Array<number>> {
+export function decodeToLngLatArray(
+  compressedData: string,
+): Array<Array<number>> {
   return compressor.decodeToLngLatArray(compressedData);
 }
 
