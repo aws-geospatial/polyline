@@ -1,5 +1,5 @@
 {
-  "name": "@maplibre/polyline",
+  "name": "@aws-geospatial/polyline",
   "version": "0.1.0",
   "license": "MIT",
   "homepage": "https://github.com/aws-geospatial/polyline",

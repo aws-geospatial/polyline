@@ -1,4 +1,4 @@
-# @maplibre/polyline
+# @aws-geospatial/polyline
 
 This library is used to simplify the process of using compressed geometry with [maplibre-gl-js](https://github.com/maplibre/maplibre-gl-js) in JavaScript Applications.
 
@@ -17,7 +17,7 @@ npm install @maplibre/polyline
 You can also import the Javascript file for usage directly in the browser.
 
 ```html
-<script src="https://www.unpkg.com/@maplibre/polyline/dist/polyline.js"></script>
+<script src="https://www.unpkg.com/@aws-geospatial/polyline/dist/polyline.js"></script>
 ```
 
 ## Usage
@@ -28,7 +28,7 @@ You can find more details about these functions in the [Documentation](#document
 ### Usage with Modules
 
 ```javascript
-import { decodeToLineStringFeature } from "@maplibre/polyline";
+import { decodeToLineStringFeature } from "@aws-geospatial/polyline";
 
 var decodedGeoJSON = decodeToLineStringFeature(response.EncodedPolyline);
 map.addLayer({
@@ -54,7 +54,7 @@ map.addLayer({
 
 ```html
 <!-- Import the Maplibre Polyline library -->
-<script src="https://www.unpkg.com/@maplibre/polyline"></script>
+<script src="https://www.unpkg.com/@aws-geospatial/polyline"></script>
 ```
 
 ```javascript
