@@ -28,7 +28,6 @@
     "build-ts:esm": "tsc --esModuleInterop --module esnext --outDir dist/esm",
     "prepublishOnly": "npm run build && npm run test",
     "test": "jest --collectCoverage --collectCoverageFrom=src/**/*.{ts,js}",
-    "posttest": "generate-coverage-data --language typescript",
     "typedoc": "typedoc"
   },
   "main": "./dist/math.js",
