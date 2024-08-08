@@ -633,18 +633,52 @@ describe.each([
     // Make sure to set the compression algorithm before each test.
     beforeEach(() => {
       polyline.setCompressionAlgorithm(algorithm);
-    });
+  });
 
-    it("encodeFromLngLatArray throws an error with 3D data", () => {
-      const coords = [
-        [0, 0, 5],
-        [10, 0, 0],
-      ];
-      expect(() => {
-        polyline.encodeFromLngLatArray(coords, {
-          thirdDimension: polyline.ThirdDimension.Altitude,
-        });
-      }).toThrow(Error);
-    });
-  },
-);
+  it("encodeFromLngLatArray throws an error with 3D data", () => {
+    const coords = [
+      [0, 0, 5],
+      [10, 0, 0],
+    ];
+    expect(() => {
+      polyline.encodeFromLngLatArray(coords, {
+        thirdDimension: polyline.ThirdDimension.Altitude,
+      });
+    }).toThrow(Error);
+  });
+});
+
+// Verify that FlexiblePolyline check for valid encoding settings.
+describe("Encoding data with FlexiblePolyline and bad settings throws errors", () => {
+  // Make sure to set the compression algorithm before each test.
+  beforeEach(() => {
+    polyline.setCompressionAlgorithm(
+        polyline.CompressionAlgorithm.FlexiblePolyline,
+    );
+  });
+
+  it("encodeFromLngLatArray throws an error with negative 2D precision", () => {
+    const coords = [
+      [0, 0, 5],
+      [10, 0, 0],
+    ];
+    expect(() => {
+      polyline.encodeFromLngLatArray(coords, {
+        precisionLngLat: -5
+      });
+    }).toThrow(Error);
+  });
+
+  it("encodeFromLngLatArray throws an error with negative 3D precision", () => {
+    const coords = [
+      [0, 0, 5],
+      [10, 0, 0],
+    ];
+    expect(() => {
+      polyline.encodeFromLngLatArray(coords, {
+        precisionThirdDimension: -5
+      });
+    }).toThrow(Error);
+  });
+
+});
