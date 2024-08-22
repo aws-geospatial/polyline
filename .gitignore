@@ -1,9 +1,11 @@
+# Ignore common artifacts
+**/build
+**/.idea
+
 # Ignore Javascript/npm artifacts
-/web/node_modules
-/web/build
-/web/dist
-/web/docs
-/web/coverage
-/.idea
-/web/.idea
+**/node_modules
+**/dist
+**/docs
+**/coverage
+
 
