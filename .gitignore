@@ -1,6 +1,9 @@
-/node_modules
-/build
-/dist
-/docs
-/coverage
+# Ignore Javascript/npm artifacts
+/web/node_modules
+/web/build
+/web/dist
+/web/docs
+/web/coverage
 /.idea
+/web/.idea
+
