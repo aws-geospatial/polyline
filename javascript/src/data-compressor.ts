@@ -2,39 +2,7 @@
 // SPDX-License-Identifier: MIT-0
 
 import { LineString, Polygon, Feature, GeoJsonProperties } from "geojson";
-
-/** Defines how to interpret a third dimension value if it exists. */
-export enum ThirdDimension {
-  /** No third dimension specified */
-  None,
-  /** Third dimension is altitude (height above the Earth's surface) */
-  Altitude,
-  /** Third dimension is elevation (height of the Earth's surface relative to the reference geoid) */
-  Elevation,
-}
-
-/** The optional set of parameters for encoding a set of LngLat coordinates.
- * Currently, only the FlexiblePolyline algorithm supports these parameters. The Polyline5 / Polyline6
- * algorithms ignore them, as they don't support 3D data and we've defined them to use
- * a fixed precision value.
- */
-export type CompressionParameters = {
-  /** The number of decimal places of precision to use for compressing longitude and latitude.
-   */
-  precisionLngLat?: number;
-  /** The number of decimal places of precision to use for compressing the third dimension of data.
-   */
-  precisionThirdDimension?: number;
-  /** The type of third dimension data being encoded - none, altitude, or elevation.
-   */
-  thirdDimension?: ThirdDimension;
-};
-
-const defaultCompressionParameters = {
-  precisionLngLat: 6,
-  precisionThirdDimension: 6,
-  thirdDimension: ThirdDimension.None,
-};
+import { ThirdDimension, CompressionParameters, defaultCompressionParameters } from "./polyline-types";
 
 // DataCompressor is an abstract base class that defines the interface for
 // encoding/decoding compressed coordinate arrays. The coordinate arrays represent either
@@ -48,15 +16,11 @@ const defaultCompressionParameters = {
 //      into MapLibre as a geojson source.
 
 export abstract class DataCompressor {
-  // True if the specific data compressor supports 3D data, false if it only supports 2D data.
-  protected abstract supports3D(): boolean;
 
-  // Encode an array of LatLng data into a string of compressed data. The coordinates may optionally have a third
+  // Encode an array of LngLat data into a string of compressed data. The coordinates may optionally have a third
   // dimension of data.
-  // All of the existing algorithms specifically encode from LatLng, which is why we've made that a part of
-  // API expectation here.
-  protected abstract encodeFromLatLngArray(
-    latLngArray: Array<Array<number>>,
+  abstract encodeFromLngLatArray(
+    lngLatArray: Array<Array<number>>,
     parameters: CompressionParameters,
   ): string;
 
@@ -64,7 +28,7 @@ export abstract class DataCompressor {
   // dimension of data.
   // All of the existing algorithms specifically decode to LatLng, which is why we've made that a part of
   // API expectation here. The results get flipped later into LngLat when assembling into GeoJSON.
-  protected abstract decodeToLatLngArray(
+  protected abstract decodeToLngLatArrayPrivate(
     compressedData: string,
   ): [Array<Array<number>>, CompressionParameters];
 
@@ -120,42 +84,12 @@ export abstract class DataCompressor {
     return true;
   }
 
-  // Helper method that performs the actual LngLat decompression. It also returns the set of compression parameters
-  // that were used so that we can include them as metadata when generating GeoJSON features.
-  private decodeLngLat(
-    compressedData: string,
-  ): [Array<Array<number>>, CompressionParameters] {
-    if (!compressedData) {
-      throw Error("Invalid input. No compressed data provided.");
-    }
-
-    const [decodedLine, compressionParameters] =
-      this.decodeToLatLngArray(compressedData);
-
-    // Change LatLng to LngLat by swapping the values for each coordinate entry.
-    for (const latLng of decodedLine) {
-      // While looping through, also verify that each latLng value is within valid ranges.
-      if (
-        latLng.length < 2 ||
-        Math.abs(latLng[0]) > 90 ||
-        Math.abs(latLng[1]) > 180
-      ) {
-        throw Error(
-          `Invalid input. Compressed data must contain valid lat/lng data. Found ${latLng}.`,
-        );
-      }
-
-      [latLng[0], latLng[1]] = [latLng[1], latLng[0]];
-    }
-
-    return [decodedLine, compressionParameters];
-  }
 
   private decodeLineString(
     compressedData: string,
   ): [LineString, CompressionParameters] {
     const [decodedLine, compressionParameters] =
-      this.decodeLngLat(compressedData);
+      this.decodeToLngLatArrayPrivate(compressedData);
     // Validate that the result is a valid GeoJSON LineString per the RFC 7946 GeoJSON spec:
     // "The 'coordinates' member is an array of two or more positions"
     if (decodedLine.length < 2) {
@@ -179,7 +113,7 @@ export abstract class DataCompressor {
     let shouldBeCounterclockwise = true; // The first ring of a polygon should be counterclockwise
     let compressionParameters: CompressionParameters = {};
     for (const ring of compressedData) {
-      const [decodedRing, ringCompressionParameters] = this.decodeLngLat(ring);
+      const [decodedRing, ringCompressionParameters] = this.decodeToLngLatArrayPrivate(ring);
 
       // Validate that the result is a valid GeoJSON Polygon linear ring per the RFC 7946 GeoJSON spec.
 
@@ -264,56 +198,8 @@ export abstract class DataCompressor {
     }
   }
 
-  encodeFromLngLatArray(
-    lngLatCoords: Array<Array<number>>,
-    parameters: CompressionParameters,
-  ): string {
-    const fullParameters = { ...defaultCompressionParameters, ...parameters };
-
-    const is2DData = lngLatCoords[0].length === 2;
-    if (!is2DData && !this.supports3D()) {
-      throw Error(
-        "Invalid input. 3D data was provided but this data compressor does not support 3D data.",
-      );
-    }
-
-    // Flip lngLat to latLng for encoding and verify that all coordinates have the same number of dimensions.
-    const latLngCoords: Array<Array<number>> = [];
-    for (const coord of lngLatCoords) {
-      // While looping through, also verify that each lngLat value is within valid ranges.
-      if (
-        coord.length < 2 ||
-        Math.abs(coord[0]) > 180 ||
-        Math.abs(coord[1]) > 90
-      ) {
-        throw Error(
-          `Invalid input. Input coordinates must contain valid lng/lat data. Found ${coord}.`,
-        );
-      }
-      if (coord.length === 2) {
-        if (!is2DData) {
-          throw Error(
-            "Invalid input. All coordinates need to have the same number of dimensions.",
-          );
-        }
-        latLngCoords.push([coord[1], coord[0]]);
-      } else if (coord.length === 3) {
-        if (is2DData) {
-          throw Error(
-            "Invalid input. All coordinates need to have the same number of dimensions.",
-          );
-        }
-        // If the input data has 3D data, preserve that in the data we're encoding.
-        latLngCoords.push([coord[1], coord[0], coord[2]]);
-      } else {
-        throw Error("Invalid input. Coordinates must have 2 or 3 dimensions.");
-      }
-    }
-    return this.encodeFromLatLngArray(latLngCoords, fullParameters);
-  }
-
   decodeToLngLatArray(compressedData: string): Array<Array<number>> {
-    const [decodedLngLatArray] = this.decodeLngLat(compressedData);
+    const [decodedLngLatArray] = this.decodeToLngLatArrayPrivate(compressedData);
 
     return decodedLngLatArray;
   }

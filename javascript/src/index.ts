@@ -2,34 +2,18 @@
 // SPDX-License-Identifier: MIT-0
 
 import {
-  ThirdDimension,
-  CompressionParameters,
   DataCompressor,
 } from "./data-compressor";
-import { FlexiblePolyline } from "./algorithms/flexible-polyline";
-import { Polyline5, Polyline6 } from "./algorithms/polyline";
+import { FlexiblePolyline, Polyline5, Polyline6 } from "./polyline";
+import {   ThirdDimension, CompressionAlgorithm, CompressionParameters } from "./polyline-types";
 
 import { LineString, Polygon, Feature } from "geojson";
 
-export { ThirdDimension, CompressionParameters };
+export { ThirdDimension, CompressionParameters, CompressionAlgorithm };
 
 // The default algorithm is FlexiblePolyline. This was selected as it is the newest and most flexible format
 // of the different decoding types supported.
 let compressor: DataCompressor = new FlexiblePolyline();
-
-/** Defines the set of compression algorithms that are supported by this library. */
-export enum CompressionAlgorithm {
-  /** Encoder/decoder for the [Flexible Polyline](https://github.com/heremaps/flexible-polyline) format. */
-  FlexiblePolyline,
-  /** Encoder/decoder for the [Encoded Polyline Algorithm Format](https://developers.google.com/maps/documentation/utilities/polylinealgorithm)
-   * with 5 bits of precision.
-   */
-  Polyline5,
-  /** Encoder/decoder for the [Encoded Polyline Algorithm Format](https://developers.google.com/maps/documentation/utilities/polylinealgorithm)
-   * with 6 bits of precision.
-   */
-  Polyline6,
-}
 
 /** Get the currently-selected compression algorithm.
  * @returns The current compression algorithm.
