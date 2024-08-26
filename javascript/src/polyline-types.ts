@@ -45,7 +45,7 @@ export type CompressionParameters = {
   /** The number of decimal places of precision to use for compressing the third dimension of data.
    */
   precisionThirdDimension?: number;
-  /** The type of third dimension data being encoded - none, altitude, or elevation.
+  /** The type of third dimension data being encoded - none, level, altitude, or elevation.
    */
   thirdDimension?: ThirdDimension;
 };
