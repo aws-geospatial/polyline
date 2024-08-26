@@ -16,7 +16,7 @@
 import {
   FlexiblePolylineFormatVersion,
   ThirdDimension,
-} from "./polyline-types";
+} from "../polyline-types";
 
 export class PolylineEncoder {
   // encodingTable is a lookup table that converts values from 0x00-0x3F

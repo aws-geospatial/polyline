@@ -164,6 +164,11 @@ describe.each([
       }).toThrow(Error);
     });
 
+    it("encodeFromLngLatArray produces empty results for empty inputs", () => {
+      const encodedLine = polyline.encodeFromLngLatArray([]);
+      expect(encodedLine).toEqual("");
+    });
+
     // Validate basic output checks for decoded data that validate for the requested geometry type
 
     it("decodeToLineString throws an error if the input has < 2 positions", () => {
@@ -447,6 +452,7 @@ describe("Decoding invalid data throws an error", () => {
     ["longitude too high", "BGg0lxJg0rn5K_zlxJ_zrn5K"], // [[181, 5], [0, 0]]
     ["latitude too low", "BG_rmytFg0lxJgsmytF_zlxJ"], // [[5, -91], [0, 0]]
     ["latitude too high", "BGgsmytFg0lxJ_rmytF_zlxJ"], // [[5, 91], [0, 0]]
+    ["invalid header version", "CGgsmytFg0lxJ_rmytF_zlxJ"], // Header version != 1
   ])(
     "FlexiblePolyline: Decoding throws an error with invalid coordinates: %s",
     (invalidMsg: string, encodedLine: string) => {
@@ -502,6 +508,7 @@ describe("Decoding 3D data with FlexiblePolyline produces the expected results",
 
   // Test encoder/decoder with 3D data
   describe.each([
+    ["level", polyline.ThirdDimension.Level],
     ["altitude", polyline.ThirdDimension.Altitude],
     ["elevation", polyline.ThirdDimension.Elevation],
   ])(

@@ -49,9 +49,3 @@ export type CompressionParameters = {
    */
   thirdDimension?: ThirdDimension;
 };
-
-export const defaultCompressionParameters = {
-  precisionLngLat: DefaultPrecision,
-  precisionThirdDimension: DefaultPrecision,
-  thirdDimension: ThirdDimension.None,
-};

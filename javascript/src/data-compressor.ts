@@ -15,19 +15,21 @@ import { ThirdDimension, CompressionParameters } from "./polyline-types";
 //      These produce a GeoJSON Geometry object that can be manually assembled into a Feature to pass
 //      into MapLibre as a geojson source.
 
+// Concrete implementations of this class are expected to implement the following APIs:
+// - compressLngLatArray(lngLatArray, compressionParameters) -> compressedData
+// - decompressLngLatArray(compressedData) -> [lngLatArray, compressionParameters]
+
 export abstract class DataCompressor {
-  // Encode an array of LngLat data into a string of compressed data. The coordinates may optionally have a third
-  // dimension of data.
-  abstract encodeFromLngLatArray(
+  // Encode an array of LngLat data into a string of compressed data.
+  // The coordinates may optionally have a third dimension of data.
+  protected abstract compressLngLatArray(
     lngLatArray: Array<Array<number>>,
     parameters: CompressionParameters,
   ): string;
 
-  // Decode a string of compressed data into an array of LatLng data. The coordinates may optionally have a third
-  // dimension of data.
-  // All of the existing algorithms specifically decode to LatLng, which is why we've made that a part of
-  // API expectation here. The results get flipped later into LngLat when assembling into GeoJSON.
-  protected abstract decodeToLngLatArrayPrivate(
+  // Decode a string of compressed data into an array of LngLat data.
+  // The coordinates may optionally have a third dimension of data.
+  protected abstract decompressLngLatArray(
     compressedData: string,
   ): [Array<Array<number>>, CompressionParameters];
 
@@ -87,7 +89,7 @@ export abstract class DataCompressor {
     compressedData: string,
   ): [LineString, CompressionParameters] {
     const [decodedLine, compressionParameters] =
-      this.decodeToLngLatArrayPrivate(compressedData);
+      this.decompressLngLatArray(compressedData);
     // Validate that the result is a valid GeoJSON LineString per the RFC 7946 GeoJSON spec:
     // "The 'coordinates' member is an array of two or more positions"
     if (decodedLine.length < 2) {
@@ -112,7 +114,7 @@ export abstract class DataCompressor {
     let compressionParameters: CompressionParameters = {};
     for (const ring of compressedData) {
       const [decodedRing, ringCompressionParameters] =
-        this.decodeToLngLatArrayPrivate(ring);
+        this.decompressLngLatArray(ring);
 
       // Validate that the result is a valid GeoJSON Polygon linear ring per the RFC 7946 GeoJSON spec.
 
@@ -178,6 +180,12 @@ export abstract class DataCompressor {
     parameters: CompressionParameters,
   ): GeoJsonProperties {
     switch (parameters.thirdDimension) {
+      case ThirdDimension.Level:
+        return {
+          precision: parameters.precisionLngLat,
+          thirdDimensionPrecision: parameters.precisionThirdDimension,
+          thirdDimensionType: "level",
+        };
       case ThirdDimension.Elevation:
         return {
           precision: parameters.precisionLngLat,
@@ -197,9 +205,15 @@ export abstract class DataCompressor {
     }
   }
 
+  encodeFromLngLatArray(
+    lngLatArray: Array<Array<number>>,
+    parameters: CompressionParameters,
+  ): string {
+    return this.compressLngLatArray(lngLatArray, parameters);
+  }
+
   decodeToLngLatArray(compressedData: string): Array<Array<number>> {
-    const [decodedLngLatArray] =
-      this.decodeToLngLatArrayPrivate(compressedData);
+    const [decodedLngLatArray] = this.decompressLngLatArray(compressedData);
 
     return decodedLngLatArray;
   }

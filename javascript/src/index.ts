@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT-0
 
 import { DataCompressor } from "./data-compressor";
-import { FlexiblePolyline, Polyline5, Polyline6 } from "./polyline";
+import { Polyline5, Polyline6 } from "./compressors/polyline";
+import { FlexiblePolyline } from "./compressors/flexible-polyline";
 import {
   ThirdDimension,
   CompressionAlgorithm,

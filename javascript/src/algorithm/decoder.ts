@@ -14,7 +14,7 @@ import {
   CompressionParameters,
   FlexiblePolylineFormatVersion,
   ThirdDimension,
-} from "./polyline-types";
+} from "../polyline-types";
 
 export class PolylineDecoder {
   // decodingTable is a lookup table that converts ASCII values from 0x00-0x7F
@@ -73,6 +73,11 @@ export class PolylineDecoder {
     while (index < encoded.length) {
       const charCode = encoded.charCodeAt(index);
       const value = this.decodingTable[charCode];
+      if (value < 0) {
+        throw Error(
+          `Invalid input. Encoded character '${charCode}' doesn't exist in the decoding table.`,
+        );
+      }
       result |= (value & 0x1f) << shift;
       shift += 5;
       index++;
