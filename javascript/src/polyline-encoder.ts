@@ -7,17 +7,25 @@
 
 // This implementation has two differences to improve usability:
 // - It uses well-defined rounding to ensure deterministic results across all programming languages.
-// - It caps the max encoding/decoding precision to 11 decimal places (1 micrometer), because 15 places will
-//   lose precision when using 64-bit floating-point numbers.
+//   The Flexible-Polyline algorithm definition says to use the rounding rules of the programming
+//   language, but this can cause inconsistent rounding depending on what language happens to be used
+//   on both the encoding and decoding sides.
+// - It caps the max encoding/decoding precision to 11 decimal places (1 micrometer), because 12+ places can
+//   lose precision when using 64-bit floating-point numbers to store integers.
 
 import {
-  DefaultPrecision,
   FlexiblePolylineFormatVersion,
   ThirdDimension,
 } from "./polyline-types";
 
 export class PolylineEncoder {
+  // encodingTable is a lookup table that converts values from 0x00-0x3F
+  // to the appropriate encoded ASCII character. Polyline and Flexible-Polyline
+  // use different character encodings.
   readonly encodingTable: string;
+
+  // includeHeader is true if the format includes a header (Flexible-Polyline),
+  // and false if it doesn't (Polyline).
   readonly includeHeader: boolean;
 
   constructor(encodingTable: string, includeHeader: boolean) {
@@ -39,72 +47,80 @@ export class PolylineEncoder {
     thirdDim: number = ThirdDimension.None,
     thirdDimPrecision: number = 0,
   ): string {
-    // Encode a sequence of lat,lng or lat,lng(,{third_dim}). Note that values should be of type Number
-    //   `precision`: how many decimal digits of precision to store the latitude and longitude.
-    //   `third_dim`: type of the third dimension if present in the input.
-    //   `third_dim_precision`: how many decimal digits of precision to store the third dimension.
+    if (precision < 0 || precision > 11) {
+      throw Error(
+        "Only precision values of 0-11 decimal digits are supported.",
+      );
+    }
+    if (!Object.values(ThirdDimension).includes(+thirdDim)) {
+      throw Error("thirdDim is an invalid ThirdDimension value.");
+    }
+    if (thirdDimPrecision < 0 || thirdDimPrecision > 11) {
+      throw Error(
+        "Only thirdDimPrecision values of 0-11 decimal digits are supported.",
+      );
+    }
+
     if (!lngLatArray.length) {
       return "";
     }
 
-    const is2DData = lngLatArray[0].length === 2;
+    const numDimensions = thirdDim ? 3 : 2;
 
-    // TODO: Verify precision ranges, no thirdDim unless flex polyline, thirdDim type.
+    // The data will either encode lat/lng or lat/lng/z values.
+    // precisionMultipliers are the multipliers needed to convert the values
+    // from floating-point to scaled integers.
+    const precisionMultipliers = [
+      10 ** precision,
+      10 ** precision,
+      10 ** thirdDimPrecision,
+    ];
+
+    // While encoding, we want to switch from lng/lat/z to lat/lng/z, so this index tells us
+    // what index to grab from the input coordinate when encoding each dimension.
+    const inputDimensionIndex = [1, 0, 2];
+
+    // maxAllowedValues are the maximum absolute values allowed for lat/lng/z. This is used for
+    // error-checking the coordinate values as they're being encoded.
+    const maxAllowedValues = [90, 180, Infinity];
+
+    // Encoded values are deltas from the previous coordinate values, so track the previous lat/lng/z values.
+    const lastScaledCoordinate = [0, 0, 0];
 
     let output = "";
-    const xyPrecisionMultiplier =
-      10 ** (Number.isInteger(precision) ? precision : DefaultPrecision);
-    const zPrecisionMultiplier = 10 ** thirdDimPrecision;
 
     // Flexible-polyline starts with an encoded header that contains precision and dimension metadata.
     if (this.includeHeader) {
       output = this.encodeHeader(precision, thirdDim, thirdDimPrecision);
     }
 
-    let lastLat = 0;
-    let lastLng = 0;
-    let lastZ = 0;
-
-    lngLatArray.forEach((location) => {
-      // While looping through, also verify that each lngLat value is within valid ranges.
-      if (
-        location.length < 2 ||
-        Math.abs(location[0]) > 180 ||
-        Math.abs(location[1]) > 90
-      ) {
+    lngLatArray.forEach((coordinate) => {
+      if (coordinate.length != numDimensions) {
         throw Error(
-          `Invalid input. Input coordinates must contain valid lng/lat data. Found ${location}.`,
+          "Invalid input. All coordinates need to have the same number of dimensions.",
         );
       }
-      if (location.length === 2) {
-        if (!is2DData) {
+
+      for (let dimension = 0; dimension < numDimensions; dimension++) {
+        // Even though our input data is in lng/lat/z order, this is where we grab them in
+        // lat/lng/z order for encoding.
+        const inputValue = coordinate[inputDimensionIndex[dimension]];
+        // While looping through, also verify the input data is valid
+        if (Math.abs(inputValue) > maxAllowedValues[dimension]) {
           throw Error(
-            "Invalid input. All coordinates need to have the same number of dimensions.",
+            `Invalid input. Input coordinates must contain valid lng/lat coordinate data. Found ${coordinate}.`,
           );
         }
-      } else if (location.length === 3) {
-        if (is2DData) {
-          throw Error(
-            "Invalid input. All coordinates need to have the same number of dimensions.",
-          );
-        }
-        // If the input data has 3D data, preserve that in the data we're encoding.
-      } else {
-        throw Error("Invalid input. Coordinates must have 2 or 3 dimensions.");
-      }
-
-      const lat = this.polylineRound(location[1] * xyPrecisionMultiplier);
-      output += this.encodeScaledValue(lat - lastLat);
-      lastLat = lat;
-
-      const lng = this.polylineRound(location[0] * xyPrecisionMultiplier);
-      output += this.encodeScaledValue(lng - lastLng);
-      lastLng = lng;
-
-      if (thirdDim) {
-        const z = this.polylineRound(location[2] * zPrecisionMultiplier);
-        output += this.encodeScaledValue(z - lastZ);
-        lastZ = z;
+        // Scale the value based on the number of digits of precision, encode the delta between
+        // it and the previous value to the output, and track it as the previous value for encoding
+        // the next delta.
+        const scaledValue = this.polylineRound(
+          inputValue * precisionMultipliers[dimension],
+        );
+        output += this.encodeSignedValue(
+          scaledValue - lastScaledCoordinate[dimension],
+        );
+        lastScaledCoordinate[dimension] = scaledValue;
       }
     });
 
@@ -116,46 +132,43 @@ export class PolylineEncoder {
     thirdDim: number,
     thirdDimPrecision: number,
   ): string {
-    // Encode the `precision`, `third_dim` and `third_dim_precision` into one encoded char
-    /*
-        if (precision < 0 || precision > 15) {
-            throw new Error('precision out of range. Should be between 0 and 15');
-        }
-        if (thirdDimPrecision < 0 || thirdDimPrecision > 15) {
-            throw new Error('thirdDimPrecision out of range. Should be between 0 and 15');
-        }
-        if (thirdDim < 0 || thirdDim > 7 || thirdDim === 4 || thirdDim === 5) {
-            throw new Error('thirdDim should be between 0, 1, 2, 3, 6 or 7');
-        }
-    */
-    const res = (thirdDimPrecision << 7) | (thirdDim << 4) | precision;
+    // Combine all the metadata about the encoded data into a single value for the header.
+    const metadataValue =
+      (thirdDimPrecision << 7) | (thirdDim << 4) | precision;
     return (
-      this.encodeUnsignedNumber(FlexiblePolylineFormatVersion) +
-      this.encodeUnsignedNumber(res)
+      this.encodeUnsignedValue(FlexiblePolylineFormatVersion) +
+      this.encodeUnsignedValue(metadataValue)
     );
   }
 
-  private encodeUnsignedNumber(val: number): string {
-    // Uses variable integer encoding to encode an unsigned integer. Returns the encoded string.
-    let res = "";
-    let numVal = val;
-    while (numVal > 0x1f) {
-      const pos = (numVal & 0x1f) | 0x20;
-      res += this.encodingTable[pos];
-      numVal >>= 5;
+  // Given a single input unsigned scaled value, this encodes into a series of
+  // ASCII characters. The flexible-polyline algorithm uses this directly to encode
+  // the header bytes, since those are known not to need a sign bit.
+  private encodeUnsignedValue(value: number): string {
+    let encodedString = "";
+    let remainingValue = value;
+    // Loop through each 5-bit chunk in the value, add a 6th bit if there
+    // will be additional chunks, and encode to an ASCII value.
+    while (remainingValue > 0x1f) {
+      const chunk = (remainingValue & 0x1f) | 0x20;
+      encodedString += this.encodingTable[chunk];
+      remainingValue >>= 5;
     }
-    return res + this.encodingTable[numVal];
+    // For the last chunk, set the 6th bit to 0 (since there are no more chunks) and encode it.
+    return encodedString + this.encodingTable[remainingValue];
   }
 
-  private encodeScaledValue(value: number): string {
-    // Transform a integer `value` into a variable length sequence of characters.
-    let numVal = value;
-    const negative = numVal < 0;
-    numVal <<= 1;
-    if (negative) {
-      numVal = ~numVal;
+  // Given a single input signed scaled value, this encodes into a series of
+  // ASCII characters.
+  private encodeSignedValue(value: number): string {
+    let unsignedValue = value;
+    // Shift the value over by 1 bit to make room for the sign bit at the end.
+    unsignedValue <<= 1;
+    // If the input value is negative, flip all the bits, including the sign bit.
+    if (value < 0) {
+      unsignedValue = ~unsignedValue;
     }
 
-    return this.encodeUnsignedNumber(numVal);
+    return this.encodeUnsignedValue(unsignedValue);
   }
 }

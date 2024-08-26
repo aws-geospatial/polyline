@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: MIT-0
 
 import { LineString, Polygon, Feature, GeoJsonProperties } from "geojson";
-import {
-  ThirdDimension,
-  CompressionParameters,
-  defaultCompressionParameters,
-} from "./polyline-types";
+import { ThirdDimension, CompressionParameters } from "./polyline-types";
 
 // DataCompressor is an abstract base class that defines the interface for
 // encoding/decoding compressed coordinate arrays. The coordinate arrays represent either

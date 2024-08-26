@@ -12,7 +12,6 @@
 
 import { DataCompressor } from "./data-compressor";
 import {
-  ThirdDimension,
   CompressionParameters,
   defaultCompressionParameters,
 } from "./polyline-types";
@@ -23,13 +22,29 @@ import { PolylineDecoder } from "./polyline-decoder";
 // encoding ( https://github.com/heremaps/flexible-polyline ), which is a variant of
 // the Encoded Polyline Algorithm Format. The algorithm handles both 2D and 3D data.
 export class FlexiblePolyline extends DataCompressor {
-  readonly FLEXPOLYLINE_ENCODING_TABLE =
+  readonly DataContainsHeader = true;
+  readonly FlexPolylineEncodingTable =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  // The lookup table contains conversion values for ASCII characters 0-127.
+  // Only the characters listed in the encoding table will contain valid
+  // decoding entries below.
+  readonly FlexPolylineDecodingTable = [
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+    61, -1, -1, -1, -1, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, 63, -1,
+    26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+    45, 46, 47, 48, 49, 50, 51,
+  ];
   readonly encoder = new PolylineEncoder(
-    this.FLEXPOLYLINE_ENCODING_TABLE,
-    true,
+    this.FlexPolylineEncodingTable,
+    this.DataContainsHeader,
   );
-  readonly decoder = new PolylineDecoder();
+  readonly decoder = new PolylineDecoder(
+    this.FlexPolylineDecodingTable,
+    this.DataContainsHeader,
+  );
 
   constructor() {
     super();
@@ -41,69 +56,41 @@ export class FlexiblePolyline extends DataCompressor {
   ): string {
     const fullParameters = { ...defaultCompressionParameters, ...parameters };
 
-    // Validate parameters.
-    if (
-      fullParameters.precisionLngLat < 0 ||
-      fullParameters.precisionLngLat > 15
-    ) {
-      throw new Error(
-        "Invalid CompressionParameters for FlexiblePolyline: precisionLngLat must be between 0 and 15.",
-      );
-    }
-    if (
-      fullParameters.precisionThirdDimension < 0 ||
-      fullParameters.precisionThirdDimension > 15
-    ) {
-      throw new Error(
-        "Invalid CompressionParameters for FlexiblePolyline: precisionThirdDimension must be between 0 and 15.",
-      );
-    }
-
-    // The underlying algorithm allows for more third dimension types than just Altitude and Elevation, but since
-    // those are the only acceptable types in the GeoJSON spec, that's all we'll support here.
-    switch (fullParameters.thirdDimension) {
-      case ThirdDimension.Altitude:
-        return this.encoder.encode(
-          lngLatArray,
-          fullParameters.precisionLngLat,
-          ThirdDimension.Altitude,
-          fullParameters.precisionThirdDimension,
-        );
-      case ThirdDimension.Elevation:
-        return this.encoder.encode(
-          lngLatArray,
-          fullParameters.precisionLngLat,
-          ThirdDimension.Elevation,
-          fullParameters.precisionThirdDimension,
-        );
-      default:
-        return this.encoder.encode(lngLatArray, fullParameters.precisionLngLat);
-    }
+    return this.encoder.encode(
+      lngLatArray,
+      fullParameters.precisionLngLat,
+      fullParameters.thirdDimension,
+      fullParameters.precisionThirdDimension,
+    );
   }
 
   decodeToLngLatArrayPrivate(
     polyline: string,
   ): [Array<Array<number>>, CompressionParameters] {
-    const decodedLine = this.decoder.decode(polyline, true);
-    const thirdDimension = decodedLine.thirdDim as ThirdDimension;
+    const [lngLatArray, header] = this.decoder.decode(polyline);
 
-    return [
-      decodedLine.polyline,
-      {
-        precisionLngLat: decodedLine.precision,
-        precisionThirdDimension: decodedLine.thirdDimPrecision,
-        thirdDimension: thirdDimension,
-      },
-    ];
+    return [lngLatArray, header];
   }
 }
 
 abstract class EncodedPolyline extends DataCompressor {
   readonly precision: number;
-  readonly POLYLINE_ENCODING_TABLE =
+  readonly PolylineEncodingTable =
     "?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-  readonly encoder = new PolylineEncoder(this.POLYLINE_ENCODING_TABLE, false);
-  readonly decoder = new PolylineDecoder();
+  // The lookup table contains conversion values for ASCII characters 0-127.
+  // Only the characters listed in the encoding table will contain valid
+  // decoding entries below.
+  readonly PolylineDecodingTable = [
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+    34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+    53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, -1,
+  ];
+  readonly encoder = new PolylineEncoder(this.PolylineEncodingTable, false);
+  readonly decoder = new PolylineDecoder(this.PolylineDecodingTable, false);
 
   constructor(precision: number) {
     super();
@@ -141,8 +128,11 @@ abstract class EncodedPolyline extends DataCompressor {
     compressedData: string,
   ): [Array<Array<number>>, CompressionParameters] {
     this.validateInput(compressedData);
-    const result = this.decoder.decode(compressedData, false, this.precision);
-    return [result.polyline, { precisionLngLat: this.precision }];
+    const [lngLatArray, header] = this.decoder.decode(
+      compressedData,
+      this.precision,
+    );
+    return [lngLatArray, { precisionLngLat: header.precisionLngLat }];
   }
 }
 
