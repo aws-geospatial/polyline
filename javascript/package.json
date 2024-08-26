@@ -40,8 +40,6 @@
     "runTest": "never"
   },
   "dependencies": {
-    "@here/flexpolyline": "^0.1.0",
-    "@mapbox/polyline": "^1.2.1",
     "@types/geojson": "^7946.0.10"
   },
   "devDependencies": {
