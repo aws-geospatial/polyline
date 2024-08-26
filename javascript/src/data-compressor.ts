@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT-0
 
 import { LineString, Polygon, Feature, GeoJsonProperties } from "geojson";
-import { ThirdDimension, CompressionParameters, defaultCompressionParameters } from "./polyline-types";
+import {
+  ThirdDimension,
+  CompressionParameters,
+  defaultCompressionParameters,
+} from "./polyline-types";
 
 // DataCompressor is an abstract base class that defines the interface for
 // encoding/decoding compressed coordinate arrays. The coordinate arrays represent either
@@ -16,7 +20,6 @@ import { ThirdDimension, CompressionParameters, defaultCompressionParameters } f
 //      into MapLibre as a geojson source.
 
 export abstract class DataCompressor {
-
   // Encode an array of LngLat data into a string of compressed data. The coordinates may optionally have a third
   // dimension of data.
   abstract encodeFromLngLatArray(
@@ -84,7 +87,6 @@ export abstract class DataCompressor {
     return true;
   }
 
-
   private decodeLineString(
     compressedData: string,
   ): [LineString, CompressionParameters] {
@@ -113,7 +115,8 @@ export abstract class DataCompressor {
     let shouldBeCounterclockwise = true; // The first ring of a polygon should be counterclockwise
     let compressionParameters: CompressionParameters = {};
     for (const ring of compressedData) {
-      const [decodedRing, ringCompressionParameters] = this.decodeToLngLatArrayPrivate(ring);
+      const [decodedRing, ringCompressionParameters] =
+        this.decodeToLngLatArrayPrivate(ring);
 
       // Validate that the result is a valid GeoJSON Polygon linear ring per the RFC 7946 GeoJSON spec.
 
@@ -199,7 +202,8 @@ export abstract class DataCompressor {
   }
 
   decodeToLngLatArray(compressedData: string): Array<Array<number>> {
-    const [decodedLngLatArray] = this.decodeToLngLatArrayPrivate(compressedData);
+    const [decodedLngLatArray] =
+      this.decodeToLngLatArrayPrivate(compressedData);
 
     return decodedLngLatArray;
   }

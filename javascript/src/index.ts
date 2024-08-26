@@ -1,11 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
-import {
-  DataCompressor,
-} from "./data-compressor";
+import { DataCompressor } from "./data-compressor";
 import { FlexiblePolyline, Polyline5, Polyline6 } from "./polyline";
-import {   ThirdDimension, CompressionAlgorithm, CompressionParameters } from "./polyline-types";
+import {
+  ThirdDimension,
+  CompressionAlgorithm,
+  CompressionParameters,
+} from "./polyline-types";
 
 import { LineString, Polygon, Feature } from "geojson";
 
