@@ -1,0 +1,95 @@
+<html>
+<head>
+    <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; }
+        #map { height: 100vh; }
+    </style>
+</head>
+<body>
+<div id="map" />
+<script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
+<script src="../dist/polyline.js"></script>
+
+<script>
+    // Create a simple map using the default MapLibre demo tiles.
+    const map = new maplibregl.Map({
+        container: "map",
+        style: "https://demotiles.maplibre.org/style.json"
+    });
+
+    map.on("load", () => {
+        try
+        {
+            // Create a sample route that draws out "Polyline".
+            const lngLatArray = [
+                [-28.19300, -61.38823],
+                [-26.78675, -45.01442],
+                [-9.20863, -43.25830],
+                [-9.20863, -52.20348],
+                [-26.78675, -53.26775],
+                [-28.19300, -61.38823],
+                [-20.10706, -61.21942],
+                [-19.05238, -57.07888],
+                [-8.85706, -57.07888],
+                [-9.20863, -61.21942],
+                [-20.10706, -61.21942],
+                [-0.06800, -60.70753],
+                [2.74450, -43.75829],
+                [-0.06800, -60.70753],
+                [11.18200, -60.53506],
+                [6.96325, -55.11851],
+                [11.18200, -60.53506],
+                [16.80700, -54.51079],
+                [3.47762, -65.61471],
+                [11.18200, -60.53506],
+                [22.43200, -60.18734],
+                [25.59606, -42.99168],
+                [22.43200, -60.18734],
+                [31.22106, -59.83591],
+                [32.62731, -53.05697],
+                [31.22106, -59.83591],
+                [38.25231, -59.65879],
+                [40.36169, -53.05697],
+                [40.01012, -54.71438],
+                [44.22887, -53.26775],
+                [47.39294, -55.51860],
+                [46.68981, -59.65879],
+                [53.72106, -59.30172],
+                [51.26012, -56.11118],
+                [56.18200, -53.89389],
+                [60.40075, -56.69477],
+                [51.26012, -56.11118],
+                [53.72106, -59.30172],
+                [58.64294, -59.48073]
+            ];
+
+            // Encode and decode the route polyline to demonstrate how the APIs are used.
+            const routePolyline = polyline.encodeFromLngLatArray(lngLatArray);
+            var decodedGeoJSON = polyline.decodeToLineStringFeature(routePolyline);
+
+            // Add the decoded GeoJSON to a layer on the map and draw it as a thin red line.
+            map.addLayer({
+                id: `route`,
+                type: 'line',
+                source: {
+                    type: 'geojson',
+                    data: decodedGeoJSON
+                },
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                paint: {
+                    'line-color': '#FF0000',
+                    'line-width': 2
+                }
+            });
+        }
+        catch (error) {
+            console.error(error);
+        }
+    });
+</script>
+</body>
+</html>
