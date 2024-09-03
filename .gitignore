@@ -1,11 +1,29 @@
 # Ignore common artifacts
 **/build
+**/.build
 **/.idea
+**/dist
+**/.DS_Store
 
 # Ignore Javascript/npm artifacts
 **/node_modules
-**/dist
 **/docs
 **/coverage
 
+# Ignore Swift artifacts
+**/Packages
+**/xcuserdata/
+**/DerivedData/
+**/.swiftpm/configuration/registries.json
+**/.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+**/.netrc
+
+# Ignore Kotlin artifacts
+**/*.iml
+**/.gradle
+**/.env
+**/local.properties
+**/captures
+**/.externalNativeBuild
+**/.cxx
 
