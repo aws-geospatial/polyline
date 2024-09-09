@@ -9,7 +9,7 @@ on:
 
 defaults:
   run:
-    work-directory: ./kotlin/
+    working-directory: ./kotlin/
 
 concurrency:
   # cancel jobs on PRs only
