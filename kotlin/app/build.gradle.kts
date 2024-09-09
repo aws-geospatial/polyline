@@ -47,5 +47,5 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    implementation("org.maplibre.gl:android-sdk:11.2.0")
+    implementation("org.maplibre.gl:android-sdk:11.3.0")
 }
