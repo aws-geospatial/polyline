@@ -3,6 +3,10 @@
 
 package software.amazon.location.polyline
 
+import software.amazon.location.polyline.compressors.FlexiblePolyline
+import software.amazon.location.polyline.compressors.Polyline5
+import software.amazon.location.polyline.compressors.Polyline6
+
 // The default algorithm is FlexiblePolyline. This was selected as it is the newest and most flexible format
 // of the different decoding types supported.
 private var compressor: DataCompressor = FlexiblePolyline()
@@ -10,21 +14,13 @@ private var compressor: DataCompressor = FlexiblePolyline()
 /** Get the currently-selected compression algorithm.
  * @returns The current compression algorithm.
  */
-public fun getCompressionAlgorithm(): CompressionAlgorithm {
+fun getCompressionAlgorithm(): CompressionAlgorithm {
     return when (compressor) {
         is Polyline5 -> CompressionAlgorithm.Polyline5
         is Polyline6 -> CompressionAlgorithm.Polyline6
         else -> CompressionAlgorithm.FlexiblePolyline
     }
 }
-
-interface DataCompressor
-
-class FlexiblePolyline : DataCompressor
-
-class Polyline5 : DataCompressor
-
-class Polyline6 : DataCompressor
 
 /** Set the compression algorithm to use for subsequent encode/decode calls.
  * @param compressionType The compression algorithm to use.
@@ -57,13 +53,14 @@ fun setCompressionAlgorithm(compressionType: CompressionAlgorithm = CompressionA
  * latitude values outside of -90, 90, longitude values outside of -180, 180,
  * data that isn't 2-dimensional or 3-dimensional, or data that is 3-dimensional with a compressor that doesn't support 3D data.
  */
-@Throws(IllegalArgumentException::class)
-public fun encodeFromLngLatArray(
+@Throws(Exception::class)
+fun encodeFromLngLatArray(
     lngLatArray: Array<DoubleArray>,
     parameters: CompressionParameters = CompressionParameters()
 ): String {
-    return ""
+    return compressor.encodeFromLngLatArray(lngLatArray, parameters)
 }
+
 
 /** Decode the provided encoded data string into an array of coordinate values.
  * @remarks
@@ -85,104 +82,169 @@ public fun encodeFromLngLatArray(
  *   ]
  * ```
  */
-@Throws(IllegalArgumentException::class)
-public fun decodeToLngLatArray(compressedData: String): Array<DoubleArray> {
-    val lngLatArray : Array<DoubleArray> = arrayOf(
-        doubleArrayOf(-28.193, -61.38823),
-        doubleArrayOf(-26.78675, -45.01442),
-        doubleArrayOf(-9.20863, -43.2583),
-        doubleArrayOf(-9.20863, -52.20348),
-        doubleArrayOf(-26.78675, -53.26775),
-        doubleArrayOf(-28.193, -61.38823),
-        doubleArrayOf(-20.10706, -61.21942),
-        doubleArrayOf(-19.05238, -57.07888),
-        doubleArrayOf(-8.85706, -57.07888),
-        doubleArrayOf(-9.20863, -61.21942),
-        doubleArrayOf(-20.10706, -61.21942),
-        doubleArrayOf(-0.068, -60.70753),
-        doubleArrayOf(2.7445, -43.75829),
-        doubleArrayOf(-0.068, -60.70753),
-        doubleArrayOf(11.182, -60.53506),
-        doubleArrayOf(6.96325, -55.11851),
-        doubleArrayOf(11.182, -60.53506),
-        doubleArrayOf(16.807, -54.51079),
-        doubleArrayOf(3.47762, -65.61471),
-        doubleArrayOf(11.182, -60.53506),
-        doubleArrayOf(22.432, -60.18734),
-        doubleArrayOf(25.59606, -42.99168),
-        doubleArrayOf(22.432, -60.18734),
-        doubleArrayOf(31.22106, -59.83591),
-        doubleArrayOf(32.62731, -53.05697),
-        doubleArrayOf(31.22106, -59.83591),
-        doubleArrayOf(38.25231, -59.65879),
-        doubleArrayOf(40.36169, -53.05697),
-        doubleArrayOf(40.01012, -54.71438),
-        doubleArrayOf(44.22887, -53.26775),
-        doubleArrayOf(47.39294, -55.5186),
-        doubleArrayOf(46.68981, -59.65879),
-        doubleArrayOf(53.72106, -59.30172),
-        doubleArrayOf(51.26012, -56.11118),
-        doubleArrayOf(56.182, -53.89389),
-        doubleArrayOf(60.40075, -56.69477),
-        doubleArrayOf(51.26012, -56.11118),
-        doubleArrayOf(53.72106, -59.30172),
-        doubleArrayOf(58.64294, -59.48073),
-    );
-    return lngLatArray;
-
+@Throws(Exception::class)
+fun decodeToLngLatArray(compressedData: String): Array<DoubleArray> {
+    return compressor.decodeToLngLatArray(compressedData)
 }
 
-public fun decodeToLineStringFeature(compressedData: String) :String {
-    val geoJson = """
-{
-    "type": "Feature",
-    "properties": {},
-    "geometry":
-    {
-        "type": "LineString",
-        "coordinates": [
-[-28.19300, -61.38823],
-[-26.78675, -45.01442],
-[-9.20863, -43.25830],
-[-9.20863, -52.20348],
-[-26.78675, -53.26775],
-[-28.19300, -61.38823],
-[-20.10706, -61.21942],
-[-19.05238, -57.07888],
-[-8.85706, -57.07888],
-[-9.20863, -61.21942],
-[-20.10706, -61.21942],
-[-0.06800, -60.70753],
-[2.74450, -43.75829],
-[-0.06800, -60.70753],
-[11.18200, -60.53506],
-[6.96325, -55.11851],
-[11.18200, -60.53506],
-[16.80700, -54.51079],
-[3.47762, -65.61471],
-[11.18200, -60.53506],
-[22.43200, -60.18734],
-[25.59606, -42.99168],
-[22.43200, -60.18734],
-[31.22106, -59.83591],
-[32.62731, -53.05697],
-[31.22106, -59.83591],
-[38.25231, -59.65879],
-[40.36169, -53.05697],
-[40.01012, -54.71438],
-[44.22887, -53.26775],
-[47.39294, -55.51860],
-[46.68981, -59.65879],
-[53.72106, -59.30172],
-[51.26012, -56.11118],
-[56.18200, -53.89389],
-[60.40075, -56.69477],
-[51.26012, -56.11118],
-[53.72106, -59.30172],
-[58.64294, -59.48073]
-        ]
-    }
+/** Decode the provided encoded data string into a GeoJSON LineString.
+ * @remarks
+ * Note that this method returns a LineString, which cannot be used as a MapLibre source without first embedding it
+ * into a GeoJSON Feature. If you want to add the LineString as a MapLibre source, use {@link decodeToLineStringFeature} instead.
+ * Only use this method when you plan to manipulate the LineString further as opposed to using it directly as a source.
+ * @param encodedData  The encoded data string to decode. The data is expected to have a minimum of two
+ * coordinate pairs with valid lat/lng values.
+ * @returns A GeoJSON LineString representing the decoded data.
+ * @throws Error() if the encodedData contains invalid characters, < 2 coordinate pairs,
+ * latitude values outside of [-90, 90], or longitude values outside of [-180, 180].
+ * @example
+ * An example of a decoded LineString:
+ * ```json
+ * {
+ *   "type": "LineString",
+ *   "coordinates": [
+ *     [5.0, 0.0],
+ *     [10.0, 5.0],
+ *     [10.0, 10.0],
+ *   ]
+ * }
+ * ```
+ */
+@Throws(Exception::class)
+fun decodeToLineString(encodedData: String): String {
+    return compressor.decodeToLineString(encodedData)
 }
-                """
-    return geoJson;
+
+/** Decode the provided encoded data string into a GeoJSON Polygon.
+ * @remarks
+ * Note that this method returns a Polygon, which cannot be used as a MapLibre source without first embedding it
+ * into a GeoJSON Feature. If you want to add the Polygon as a MapLibre source, use {@link decodeToPolygonFeature} instead.
+ * Only use this method when you plan to manipulate the Polygon further as opposed to using it directly as a source.
+ * @param encodedData  An array of encoded data strings to decode. This is an array instead of a single string
+ * because polygons can consist of multiple rings of compressed data. The first entry will be treated as the
+ * outer ring and the remaining entries will be treated as inner rings. Each input ring can be wound either
+ * clockwise or counterclockwise; they will get rewound to be GeoJSON-compliant in the output. Each ring is
+ * expected to have a minimum of four coordinate pairs with valid lat/lng data, and the last coordinate pair
+ * must match the first to make an explicit ring.
+ * @returns A GeoJSON Polygon representing the decoded data. The first entry in the output coordinates
+ * represents the outer ring and any remaining entries represent inner rings.
+ * @throws Error() if the encodedData contains invalid characters, < 4 coordinate pairs, first/last coordinates that
+ * aren't approximately equal, latitude values outside of [-90, 90], or longitude values outside of [-180, 180].
+ * @example
+ * An example of a decoded Polygon:
+ * ```json
+ * {
+ *   "type": "Polygon",
+ *   "coordinates": [
+ *     [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], // outer ring
+ *     [[2, 2], [2,  8], [8 , 8 ], [8 , 2], [2, 2]], // inner ring
+ *     [[4, 4], [4,  6], [6 , 6 ], [6 , 4], [4, 4]]  // inner ring
+ *   ]
+ * }
+ * ```
+ */
+@Throws(Exception::class)
+fun decodeToPolygon(encodedData: Array<String>): String {
+    return compressor.decodeToPolygon(encodedData)
+}
+
+/** Decode the provided encoded data string into a GeoJSON Feature containing a LineString.
+ * @param encodedData  The encoded data string to decode. The data is expected to have a minimum of two
+ * coordinate pairs with valid lat/lng values.
+ * @returns A GeoJSON Feature containing a LineString that represents the decoded data.
+ * @throws Error() if the encodedData contains invalid characters, < 2 coordinate pairs,
+ * latitude values outside of [-90, 90], or longitude values outside of [-180, 180]
+ * @example
+ * An example of a decoded LineString as a Feature:
+ * ```json
+ * {
+ *   "type": "Feature",
+ *   "properties": {},
+ *   "geometry": {
+ *     "type": "LineString",
+ *     "coordinates": [
+ *       [5.0, 0.0],
+ *       [10.0, 5.0],
+ *       [10.0, 10.0],
+ *     ]
+ *   }
+ * }
+ * ```
+ * The result of this method can be used with MapLibre's `addSource` to add a named data source or embedded directly
+ * with MapLibre's `addLayer` to both add and render the result:
+ * ```javascript
+ * var decodedGeoJSON = polylineDecoder.decodeToLineStringFeature(encodedRoutePolyline);
+ * map.addLayer({
+ *   id: 'route',
+ *   type: 'line',
+ *     source: {
+ *       type: 'geojson',
+ *       data: decodedGeoJSON
+ *     },
+ *     layout: {
+ *       'line-join': 'round',
+ *       'line-cap': 'round'
+ *     },
+ *       paint: {
+ *         'line-color': '#3887be',
+ *         'line-width': 5,
+ *         'line-opacity': 0.75
+ *       }
+ * });
+ * ```
+ */
+@Throws(Exception::class)
+fun decodeToLineStringFeature(encodedData: String): String {
+    return compressor.decodeToLineStringFeature(encodedData)
+}
+
+/** Decode the provided encoded data string into a GeoJSON Feature containing a Polygon.
+ * @param encodedData  An array of encoded data strings to decode. This is an array instead of a single string
+ * because polygons can consist of multiple rings of compressed data. The first entry will be treated as the
+ * outer ring and the remaining entries will be treated as inner rings. Each input ring can be wound either
+ * clockwise or counterclockwise; they will get rewound to be GeoJSON-compliant in the output. Each ring is
+ * expected to have a minimum of four coordinate pairs with valid lat/lng data, and the last coordinate pair
+ * must match the first to make an explicit ring.
+ * @returns A GeoJSON Feature containing a Polygon that represents the decoded data. The first entry in the
+ * output coordinates represents the outer ring and any remaining entries represent inner rings.
+ * @throws Error() if the encodedData contains invalid characters, < 4 coordinate pairs, first/last coordinates that
+ * aren't approximately equal, latitude values outside of [-90, 90], or longitude values outside of [-180, 180].
+ * @example
+ * An example of a decoded Polygon as a Feature:
+ * ```json
+ * {
+ *   'type': 'Feature',
+ *   'properties': {},
+ *   'geometry': {
+ *     "type": "Polygon",
+ *     "coordinates": [
+ *       [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], // outer ring
+ *       [[2, 2], [2,  8], [8 , 8 ], [8 , 2], [2, 2]], // inner ring
+ *       [[4, 4], [4,  6], [6 , 6 ], [6 , 4], [4, 4]]  // inner ring
+ *     ]
+ *   }
+ * }
+ * ```
+ * The result of this method can be used with MapLibre's `addSource` to add a named data source or embedded directly
+ * with MapLibre's `addLayer` to both add and render the result:
+ * ```javascript
+ * var decodedGeoJSON = polylineDecoder.decodeToPolygonFeature(encodedIsolinePolygons);
+ * map.addLayer({
+ *   id: 'isoline',
+ *   type: 'fill',
+ *     source: {
+ *       type: 'geojson',
+ *       data: decodedGeoJSON
+ *     },
+ *     layout: {},
+ *     paint: {
+ *       'fill-color': '#FF0000',
+ *       'fill-opacity': 0.6
+}
+ * });
+ * ```
+ */
+@Throws(Exception::class)
+fun decodeToPolygonFeature(encodedData: Array<String>): String {
+    return compressor.decodeToPolygonFeature(encodedData)
 }
