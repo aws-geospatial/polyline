@@ -15,8 +15,7 @@ import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
 
 import software.amazon.location.polyline.R
-import software.amazon.location.polyline.encodeFromLngLatArray
-import software.amazon.location.polyline.decodeToLineStringFeature
+import software.amazon.location.polyline.Polyline
 
 class MainActivity : AppCompatActivity() {
 
@@ -82,9 +81,14 @@ class MainActivity : AppCompatActivity() {
                 );
 
                 // Encode and decode the route polyline to demonstrate how the APIs are used.
-                val routePolyline = encodeFromLngLatArray(lngLatArray);
-                val decodedGeoJSON =
-                    decodeToLineStringFeature(routePolyline);
+                val routePolyline = when (val result = Polyline.encodeFromLngLatArray(lngLatArray)) {
+                    is Polyline.EncodeResult.Success -> result.encodedData
+                    is Polyline.EncodeResult.Error -> ""
+                }
+                val decodedGeoJSON = when (val result = Polyline.decodeToLineStringFeature(routePolyline)) {
+                    is Polyline.DecodeToGeoJsonResult.Success -> result.geojson
+                    is Polyline.DecodeToGeoJsonResult.Error -> ""
+                }
 
                 style.addSource(
                     GeoJsonSource(

@@ -7,12 +7,12 @@
 
 package software.amazon.location.polyline.compressors
 
-import software.amazon.location.polyline.CompressionParameters
+import software.amazon.location.polyline.Polyline
 import software.amazon.location.polyline.DataCompressor
 import software.amazon.location.polyline.algorithm.PolylineDecoder
 import software.amazon.location.polyline.algorithm.PolylineEncoder
 
-class FlexiblePolyline : DataCompressor() {
+internal class FlexiblePolyline : DataCompressor() {
     private val dataContainsHeader = true
     private val flexPolylineEncodingTable =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
@@ -42,7 +42,7 @@ class FlexiblePolyline : DataCompressor() {
 
     override fun compressLngLatArray(
         lngLatArray: Array<DoubleArray>,
-        parameters: CompressionParameters
+        parameters: Polyline.CompressionParameters
     ): String {
         return encoder.encode(
                 lngLatArray = lngLatArray,
@@ -52,7 +52,7 @@ class FlexiblePolyline : DataCompressor() {
             )
     }
 
-    override fun decompressLngLatArray(compressedData: String): Pair<Array<DoubleArray>, CompressionParameters> {
+    override fun decompressLngLatArray(compressedData: String): Pair<Array<DoubleArray>, Polyline.CompressionParameters> {
        val (lngLatArray, header) = decoder.decode(encoded = compressedData)
         return Pair(lngLatArray, header)
     }

@@ -18,11 +18,9 @@ package software.amazon.location.polyline.algorithm
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.pow
-import software.amazon.location.polyline.ThirdDimension
+import software.amazon.location.polyline.Polyline
+import software.amazon.location.polyline.EncodeException
 import software.amazon.location.polyline.FlexiblePolylineFormatVersion
-import software.amazon.location.polyline.InvalidPrecisionValueException
-import software.amazon.location.polyline.InconsistentCoordinateDimensionsException
-import software.amazon.location.polyline.InvalidCoordinateValueException
 
 /** Encodes lng/lat coordinate arrays into polyline strings
  * @param encodingTable A lookup table that converts values from 0x00-0x3F
@@ -31,7 +29,7 @@ import software.amazon.location.polyline.InvalidCoordinateValueException
  * @param includeHeader True if the format includes a header (Flexible-Polyline),
  *    and false if it doesn't (Polyline).
  */
-class PolylineEncoder(
+internal class PolylineEncoder(
     private val encodingTable: String,
     private val includeHeader: Boolean
 ) {
@@ -45,25 +43,25 @@ class PolylineEncoder(
         return if (value >= 0.0) rounded.toLong() else (-rounded).toLong()
     }
 
-    @Throws(InvalidPrecisionValueException::class, InconsistentCoordinateDimensionsException::class)
+    @Throws(EncodeException::class)
     fun encode(
         lngLatArray: Array<DoubleArray>,
         precision: Int,
-        thirdDim: ThirdDimension = ThirdDimension.None,
+        thirdDim: Polyline.ThirdDimension = Polyline.ThirdDimension.None,
         thirdDimPrecision: Int = 0
     ): String {
         if (precision < 0 || precision > 11) {
-            throw InvalidPrecisionValueException()
+            throw EncodeException("Invalid precision value, the valid range is 0 - 11", Polyline.EncodeError.InvalidPrecisionValue)
         }
         if (thirdDimPrecision < 0 || thirdDimPrecision > 11) {
-            throw InvalidPrecisionValueException()
+            throw EncodeException("Invalid precision value, the valid range is 0 - 11", Polyline.EncodeError.InvalidPrecisionValue)
         }
 
         if (lngLatArray.isEmpty()) {
             return ""
         }
 
-        val numDimensions = if (thirdDim != ThirdDimension.None) 3 else 2
+        val numDimensions = if (thirdDim != Polyline.ThirdDimension.None) 3 else 2
 
         // The data will either encode lat/lng or lat/lng/z values.
         // precisionMultipliers are the multipliers needed to convert the values
@@ -94,7 +92,7 @@ class PolylineEncoder(
 
         for (coordinate in lngLatArray) {
             if (coordinate.size != numDimensions) {
-                throw InconsistentCoordinateDimensionsException()
+                throw EncodeException("All the coordinates need to have the same number of dimensions", Polyline.EncodeError.InconsistentCoordinateDimensions)
             }
 
             for (dimension in 0 until numDimensions) {
@@ -103,7 +101,7 @@ class PolylineEncoder(
                 val inputValue = coordinate[inputDimensionIndex[dimension]]
                 // While looping through, also verify the input data is valid
                 if (abs(inputValue) > maxAllowedValues[dimension]) {
-                    throw InvalidCoordinateValueException()
+                    throw EncodeException("Latitude values need to be in [-90, 90] and longitude values need to be in [-180, 180]", Polyline.EncodeError.InvalidCoordinateValue)
                 }
                 // Scale the value based on the number of digits of precision, encode the delta between
                 // it and the previous value to the output, and track it as the previous value for encoding
@@ -119,7 +117,7 @@ class PolylineEncoder(
 
     private fun encodeHeader(
         precision: Int,
-        thirdDim: ThirdDimension,
+        thirdDim: Polyline.ThirdDimension,
         thirdDimPrecision: Int
     ): String {
         // Combine all the metadata about the encoded data into a single value for the header.

@@ -20,13 +20,13 @@ import kotlin.math.abs
 // - compressLngLatArray(lngLatArray, compressionParameters) -> compressedData
 // - decompressLngLatArray(compressedData) -> [lngLatArray, compressionParameters]
 
-open class DataCompressor {
+internal open class DataCompressor {
     // Encode an array of LngLat data into a string of compressed data.
     // The coordinates may optionally have a third dimension of data.
     @Throws(Exception::class)
     open fun compressLngLatArray(
         lngLatArray: Array<DoubleArray>,
-        parameters: CompressionParameters
+        parameters: Polyline.CompressionParameters
     ): String {
         return ""
     }
@@ -36,8 +36,8 @@ open class DataCompressor {
     @Throws(Exception::class)
     open fun decompressLngLatArray(
         compressedData: String
-    ): Pair<Array<DoubleArray>, CompressionParameters> {
-        return Pair(arrayOf(doubleArrayOf()), CompressionParameters(DefaultPrecision, 0, ThirdDimension.None))
+    ): Pair<Array<DoubleArray>, Polyline.CompressionParameters> {
+        return Pair(arrayOf(doubleArrayOf()), Polyline.CompressionParameters())
     }
 
     // Helper method to determine whether the polygon is wound in CCW (counterclockwise) or CW (clockwise) order.
@@ -90,8 +90,8 @@ open class DataCompressor {
         return true
     }
 
-    @Throws(Exception::class)
-    private fun decodeLineString(compressedData: String): Pair<String, CompressionParameters> {
+    @Throws(DecodeException::class)
+    private fun decodeLineString(compressedData: String): Pair<String, Polyline.CompressionParameters> {
         val (decodedLine, compressionParameters) = try {
             decompressLngLatArray(compressedData)
         } catch (e: Exception) {
@@ -101,7 +101,7 @@ open class DataCompressor {
         // Validate that the result is a valid GeoJSON LineString per the RFC 7946 GeoJSON spec:
         // "The 'coordinates' member is an array of two or more positions"
         if (decodedLine.size < 2) {
-            throw InvalidLineStringLengthException()
+            throw DecodeException("LineString coordinate arrays need at least 2 entries (start, end)", Polyline.DecodeError.InvalidLineStringLength)
         }
 
         return Pair(
@@ -115,11 +115,11 @@ open class DataCompressor {
         )
     }
 
-    @Throws(Exception::class)
-    private fun decodePolygon(compressedData: Array<String>): Pair<String, CompressionParameters> {
+    @Throws(DecodeException::class)
+    private fun decodePolygon(compressedData: Array<String>): Pair<String, Polyline.CompressionParameters> {
         val decodedPolygon: MutableList<Array<DoubleArray>> = mutableListOf()
         var shouldBeCounterclockwise = true // The first ring of a polygon should be counterclockwise
-        var compressionParameters = CompressionParameters()
+        var compressionParameters = Polyline.CompressionParameters()
 
         for (ring in compressedData) {
             val (decodedRing, ringCompressionParameters) = try {
@@ -132,14 +132,14 @@ open class DataCompressor {
 
             // 1. "A linear ring is a closed LineString with 4 or more positions."
             if (decodedRing.size < 4) {
-                throw InvalidPolygonLengthException()
+                throw DecodeException("Polygon coordinate arrays need at least 4 entries (v0, v1, v2, v0)", Polyline.DecodeError.InvalidPolygonLength)
             }
 
             // 2. "The first and last positions are equivalent, and they MUST contain identical values;
             //     their representation SHOULD also be identical."
             // We validate equivalency within a small epsilon.
             if (!positionsAreEquivalent(decodedRing[0], decodedRing[decodedRing.size - 1])) {
-                throw InvalidPolygonClosureException()
+                throw DecodeException("Polygons need the first and last coordinate to match", Polyline.DecodeError.InvalidPolygonClosure)
             }
 
             // 3. "A linear ring MUST follow the right-hand rule with respect to the area it bounds,
@@ -189,24 +189,24 @@ open class DataCompressor {
     }
 
     private fun compressionParametersToGeoJsonProperties(
-        parameters: CompressionParameters
+        parameters: Polyline.CompressionParameters
     ): String {
         return when (parameters.thirdDimension) {
-            ThirdDimension.Level -> """
+            Polyline.ThirdDimension.Level -> """
             {
                 "precision": ${parameters.precisionLngLat},
                 "thirdDimensionPrecision": ${parameters.precisionThirdDimension},
                 "thirdDimensionType": "level"
             }
             """
-            ThirdDimension.Elevation -> """
+            Polyline.ThirdDimension.Elevation -> """
             {
                 "precision": ${parameters.precisionLngLat},
                 "thirdDimensionPrecision": ${parameters.precisionThirdDimension},
                 "thirdDimensionType": "elevation"
             }
             """
-            ThirdDimension.Altitude -> """
+            Polyline.ThirdDimension.Altitude -> """
             {
                 "precision": ${parameters.precisionLngLat},
                 "thirdDimensionPrecision": ${parameters.precisionThirdDimension},
@@ -221,78 +221,72 @@ open class DataCompressor {
         }
     }
 
-    @Throws(Exception::class)
     fun encodeFromLngLatArray(
         lngLatArray: Array<DoubleArray>,
-        parameters: CompressionParameters
-    ): String {
+        parameters: Polyline.CompressionParameters
+    ): Polyline.EncodeResult {
         return try {
-            compressLngLatArray(lngLatArray, parameters)
-        } catch (e: Exception) {
-            throw e
+            Polyline.EncodeResult.Success(compressLngLatArray(lngLatArray, parameters))
+        } catch (e: EncodeException) {
+            Polyline.EncodeResult.Error(e.err)
         }
     }
 
-    @Throws(Exception::class)
-    fun decodeToLngLatArray(compressedData: String): Array<DoubleArray> {
+    fun decodeToLngLatArray(compressedData: String): Polyline.DecodeToArrayResult {
         val (decodedLngLatArray, _) = try {
             decompressLngLatArray(compressedData)
-        } catch (e: Exception) {
-            throw e
+        } catch (e: DecodeException) {
+            return Polyline.DecodeToArrayResult.Error(e.err)
         }
-        return decodedLngLatArray
+        return Polyline.DecodeToArrayResult.Success(decodedLngLatArray)
     }
 
-    @Throws(Exception::class)
-    fun decodeToLineString(compressedData: String): String {
+    fun decodeToLineString(compressedData: String): Polyline.DecodeToGeoJsonResult {
         val (lineString, _) = try {
             decodeLineString(compressedData)
-        } catch (e: Exception) {
-            throw e
+        } catch (e: DecodeException) {
+            return Polyline.DecodeToGeoJsonResult.Error(e.err)
         }
-        return lineString
+        return Polyline.DecodeToGeoJsonResult.Success(lineString)
     }
 
-    @Throws(Exception::class)
-    fun decodeToPolygon(compressedData: Array<String>): String {
+    fun decodeToPolygon(compressedData: Array<String>): Polyline.DecodeToGeoJsonResult {
         val (polygon, _) = try {
             decodePolygon(compressedData)
-        } catch (e: Exception) {
-            throw e
+        } catch (e: DecodeException) {
+            return Polyline.DecodeToGeoJsonResult.Error(e.err)
         }
-        return polygon
+        return Polyline.DecodeToGeoJsonResult.Success(polygon)
     }
 
-    @Throws(Exception::class)
-    fun decodeToLineStringFeature(compressedData: String): String {
+    fun decodeToLineStringFeature(compressedData: String): Polyline.DecodeToGeoJsonResult {
         val (lineString, compressionParameters) = try {
             decodeLineString(compressedData)
-        } catch (e: Exception) {
-            throw e
+        } catch (e: DecodeException) {
+            return Polyline.DecodeToGeoJsonResult.Error(e.err)
         }
-        return """
+        return Polyline.DecodeToGeoJsonResult.Success("""
         {
             "type": "Feature",
             "geometry": $lineString,
             "properties": ${compressionParametersToGeoJsonProperties(parameters = compressionParameters)}
         }
-        """
+        """)
     }
 
-    @Throws(Exception::class)
-    fun decodeToPolygonFeature(compressedData: Array<String>): String {
+    fun decodeToPolygonFeature(compressedData: Array<String>): Polyline.DecodeToGeoJsonResult {
         val (polygon, compressionParameters) = try {
             decodePolygon(compressedData)
-        } catch (e: Exception) {
-            throw e
+        } catch (e: DecodeException) {
+            return Polyline.DecodeToGeoJsonResult.Error(e.err)
         }
-        return """
+        return Polyline.DecodeToGeoJsonResult.Success("""
         {
             "type": "Feature",
             "geometry": $polygon,
             "properties": ${compressionParametersToGeoJsonProperties(parameters = compressionParameters)}
         }
-        """
+        """)
     }
 
 }

@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import org.junit.jupiter.api.BeforeEach
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
@@ -39,10 +38,10 @@ data class PolygonFeature(
 
 class PolylineTest {
 
-    private val algorithms: List<CompressionAlgorithm> = listOf(
-        CompressionAlgorithm.FlexiblePolyline,
-        CompressionAlgorithm.Polyline5,
-        CompressionAlgorithm.Polyline6)
+    private val algorithms: List<Polyline.CompressionAlgorithm> = listOf(
+        Polyline.CompressionAlgorithm.FlexiblePolyline,
+        Polyline.CompressionAlgorithm.Polyline5,
+        Polyline.CompressionAlgorithm.Polyline6)
 
     private fun validateLineString(geojson: String, coords: Array<DoubleArray>) {
         val lineString= Gson().fromJson(geojson, LineString::class.java)
@@ -56,25 +55,25 @@ class PolylineTest {
         assertTrue(polygon.coordinates.contentDeepEquals(coords))
     }
 
-    private fun validateProperties(properties: Properties, parameters: CompressionParameters) {
+    private fun validateProperties(properties: Properties, parameters: Polyline.CompressionParameters) {
         assertEquals(properties.precision, parameters.precisionLngLat)
-        assertEquals(properties.thirdDimensionPrecision != null, parameters.thirdDimension != ThirdDimension.None)
+        assertEquals(properties.thirdDimensionPrecision != null, parameters.thirdDimension != Polyline.ThirdDimension.None)
         if (properties.thirdDimensionPrecision != null) {
             assertEquals(properties.thirdDimensionPrecision, parameters.precisionThirdDimension)
         }
-        assertEquals(properties.thirdDimensionType != null, parameters.thirdDimension != ThirdDimension.None)
+        assertEquals(properties.thirdDimensionType != null, parameters.thirdDimension != Polyline.ThirdDimension.None)
         if (properties.thirdDimensionType != null) {
             when (properties.thirdDimensionType) {
-                "level" -> assertEquals(parameters.thirdDimension, ThirdDimension.Level)
-                "altitude" -> assertEquals(parameters.thirdDimension, ThirdDimension.Altitude)
-                "elevation" -> assertEquals(parameters.thirdDimension, ThirdDimension.Elevation)
+                "level" -> assertEquals(parameters.thirdDimension, Polyline.ThirdDimension.Level)
+                "altitude" -> assertEquals(parameters.thirdDimension, Polyline.ThirdDimension.Altitude)
+                "elevation" -> assertEquals(parameters.thirdDimension, Polyline.ThirdDimension.Elevation)
                 else -> fail("Unknown third dimension type")
             }
             assertEquals(properties.thirdDimensionPrecision, parameters.precisionThirdDimension)
         }
     }
 
-    private fun validateLineStringFeature(geojson: String, coords: Array<DoubleArray>, parameters: CompressionParameters) {
+    private fun validateLineStringFeature(geojson: String, coords: Array<DoubleArray>, parameters: Polyline.CompressionParameters) {
         val lineStringFeature = Gson().fromJson(geojson, LineStringFeature::class.java)
         assertEquals(lineStringFeature.type, "Feature")
         assertEquals(lineStringFeature.geometry.type, "LineString")
@@ -82,7 +81,7 @@ class PolylineTest {
         validateProperties(lineStringFeature.properties, parameters)
     }
 
-    private fun validatePolygonFeature(geojson: String, coords: Array<Array<DoubleArray>>, parameters: CompressionParameters) {
+    private fun validatePolygonFeature(geojson: String, coords: Array<Array<DoubleArray>>, parameters: Polyline.CompressionParameters) {
         val polygonFeature = Gson().fromJson(geojson, PolygonFeature::class.java)
         assertEquals(polygonFeature.type, "Feature")
         assertEquals(polygonFeature.geometry.type, "Polygon")
@@ -93,213 +92,238 @@ class PolylineTest {
     @BeforeEach
     fun setup() {
         // Reset the compression algorithm back to the default for each unit test.
-        setCompressionAlgorithm()
+        Polyline.setCompressionAlgorithm()
     }
 
     @Test
-    fun `test defaults to flexible polyline`() {
-        assertEquals(getCompressionAlgorithm(), CompressionAlgorithm.FlexiblePolyline)
+    fun testDefaultAlgorithmIsFlexiblePolyline() {
+        assertEquals(Polyline.getCompressionAlgorithm(), Polyline.CompressionAlgorithm.FlexiblePolyline)
     }
 
     @Test
-    fun `test setting flexible polyline`() {
+    fun testSettingAlgorithmToFlexiblePolyline() {
         // Since we default to FlexiblePolyline first set to something other than FlexiblePolyline
-        setCompressionAlgorithm(CompressionAlgorithm.Polyline5)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.Polyline5)
         // Now set back to FlexiblePolyline
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
-        assertEquals(getCompressionAlgorithm(), CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
+        assertEquals(Polyline.getCompressionAlgorithm(), Polyline.CompressionAlgorithm.FlexiblePolyline)
     }
 
     @Test
-    fun `test setting non-default algorithm`() {
-        val nonDefaultAlgorithms = listOf(CompressionAlgorithm.Polyline5, CompressionAlgorithm.Polyline6)
+    fun testSettingToNonDefaultAlgorithm() {
+        val nonDefaultAlgorithms = listOf(Polyline.CompressionAlgorithm.Polyline5, Polyline.CompressionAlgorithm.Polyline6)
 
         for (algorithm in nonDefaultAlgorithms) {
-            setCompressionAlgorithm(algorithm)
-            assertEquals(getCompressionAlgorithm(), algorithm)
+            Polyline.setCompressionAlgorithm(algorithm)
+            assertEquals(Polyline.getCompressionAlgorithm(), algorithm)
         }
     }
 
     @Test
     fun testDecodingEmptyDataThrowsError() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-            assertFailsWith<EmptyInputException>(
-                message = "Expected EmptyInputException to be thrown",
-                block = {
-                    decodeToLineString("")
-                })
+            Polyline.setCompressionAlgorithm(algorithm)
+            when (val result = Polyline.decodeToLineString("")) {
+                is Polyline.DecodeToGeoJsonResult.Success -> fail("Expected error result")
+                is Polyline.DecodeToGeoJsonResult.Error -> assertEquals(result.error, Polyline.DecodeError.EmptyInput)
+            }
         }
     }
 
     @Test
     fun testDecodingBadDataThrowsError() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
+            Polyline.setCompressionAlgorithm(algorithm)
             // The characters in the string below are invalid for each of the decoding algorithms.
             // For polyline5/polyline6, only ?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~ are valid.
             // For flexiblePolyline, only ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ are valid.
-            assertFailsWith<InvalidEncodedCharacterException>(
-                message = "Expected InvalidEncodedCharacterException to be thrown",
-                block = {
-                    decodeToLineString("!#$%(*)&")
-                })
+            when (val result = Polyline.decodeToLineString("!#$%(*)&")) {
+                is Polyline.DecodeToGeoJsonResult.Success -> fail("Expected error result")
+                is Polyline.DecodeToGeoJsonResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.DecodeError.InvalidEncodedCharacter
+                )
+            }
         }
     }
 
     @Test
     fun testEncodingInputPointValuesAreValidated() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
+            Polyline.setCompressionAlgorithm(algorithm)
 
             // Longitude too low
-            assertFailsWith<InvalidCoordinateValueException>(
-                message = "Expected InvalidCoordinateValueException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(-181.0, 5.0), doubleArrayOf(0.0, 0.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(-181.0, 5.0), doubleArrayOf(0.0, 0.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InvalidCoordinateValue
+                )
+            }
 
             // Longitude too high
-            assertFailsWith<InvalidCoordinateValueException>(
-                message = "Expected InvalidCoordinateValueException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(181.0, 5.0), doubleArrayOf(0.0, 0.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(181.0, 5.0), doubleArrayOf(0.0, 0.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InvalidCoordinateValue
+                )
+            }
 
             // Latitude too low
-            assertFailsWith<InvalidCoordinateValueException>(
-                message = "Expected InvalidCoordinateValueException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0, -91.0), doubleArrayOf(0.0, 0.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(5.0, -91.0), doubleArrayOf(0.0, 0.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InvalidCoordinateValue
+                )
+            }
 
             // Latitude too high
-            assertFailsWith<InvalidCoordinateValueException>(
-                message = "Expected InvalidCoordinateValueException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0, 91.0), doubleArrayOf(0.0, 0.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(5.0, 91.0), doubleArrayOf(0.0, 0.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InvalidCoordinateValue
+                )
+            }
         }
     }
 
     @Test
     fun testEncodingMixedDimensionalityThrowsError() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
+            Polyline.setCompressionAlgorithm(algorithm)
 
             // Mixing 2D and 3D throws error
-            assertFailsWith<InconsistentCoordinateDimensionsException>(
-                message = "Expected InconsistentCoordinateDimensionsException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0, 5.0), doubleArrayOf(10.0, 10.0, 10.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(5.0, 5.0), doubleArrayOf(10.0, 10.0, 10.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InconsistentCoordinateDimensions
+                )
+            }
 
             // Mixing 3D and 2D throws error
-            assertFailsWith<InconsistentCoordinateDimensionsException>(
-                message = "Expected InconsistentCoordinateDimensionsException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0, 5.0, 5.0), doubleArrayOf(10.0, 10.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(5.0, 5.0, 5.0), doubleArrayOf(10.0, 10.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InconsistentCoordinateDimensions
+                )
+            }
         }
     }
 
     @Test
     fun testEncodingUnsupportedDimensionsThrowsError() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
+            Polyline.setCompressionAlgorithm(algorithm)
 
             // 1D throws error
-            assertFailsWith<InconsistentCoordinateDimensionsException>(
-                message = "Expected InconsistentCoordinateDimensionsException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0), doubleArrayOf(10.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(5.0), doubleArrayOf(10.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InconsistentCoordinateDimensions
+                )
+            }
 
             // 4D throws error
-            assertFailsWith<InconsistentCoordinateDimensionsException>(
-                message = "Expected InconsistentCoordinateDimensionsException to be thrown",
-                block = {
-                    encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0, 5.0, 5.0, 5.0), doubleArrayOf(10.0, 10.0, 10.0, 10.0)))
-                })
+            when (val result = Polyline.encodeFromLngLatArray(
+                arrayOf(doubleArrayOf(5.0, 5.0, 5.0), doubleArrayOf(10.0, 10.0, 10.0, 10.0)))) {
+                is Polyline.EncodeResult.Success -> fail("Expected error result")
+                is Polyline.EncodeResult.Error -> assertEquals(
+                    result.error,
+                    Polyline.EncodeError.InconsistentCoordinateDimensions
+                )
+            }
         }
     }
 
     @Test
     fun testEncodingEmptyInputProducesEmptyResults() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-            assertEquals("", encodeFromLngLatArray(emptyArray()))
+            Polyline.setCompressionAlgorithm(algorithm)
+            when (val result = Polyline.encodeFromLngLatArray(emptyArray())) {
+                is Polyline.EncodeResult.Success -> assertEquals("", result.encodedData)
+                is Polyline.EncodeResult.Error -> fail("Expected success")
+            }
         }
     }
 
     @Test
     fun testDecodeToLineStringWithOnePositionThrowsError() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            assertFailsWith<InvalidLineStringLengthException>(
-                message = "Expected InvalidLineStringLengthException to be thrown",
-                block = {
-                    val encodedLine = encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0, 5.0)))
-                    decodeToLineString(encodedLine)
-                })
+            Polyline.setCompressionAlgorithm(algorithm)
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(arrayOf(doubleArrayOf(5.0, 5.0)))) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToLineString(encodedLine)) {
+                is Polyline.DecodeToGeoJsonResult.Success -> fail("Expected decode failure")
+                is Polyline.DecodeToGeoJsonResult.Error -> assertEquals(decodeResult.error, Polyline.DecodeError.InvalidLineStringLength)
+            }
         }
     }
 
     @Test
     fun testDecodeToPolygonWithUnderFourPositionsThrowsError() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            assertFailsWith<InvalidPolygonLengthException>(
-                message = "Expected InvalidPolygonLengthException to be thrown",
-                block = {
-                    val encodedLine = encodeFromLngLatArray(
-                        lngLatArray = arrayOf(
-                            doubleArrayOf(5.0, 5.0),
-                            doubleArrayOf(10.0, 10.0),
-                            doubleArrayOf(5.0, 5.0)
-                        )
-                    )
-                    decodeToPolygon(arrayOf(encodedLine))
-                })
+            Polyline.setCompressionAlgorithm(algorithm)
+            val encodedPolygon = when (val result = Polyline.encodeFromLngLatArray(arrayOf(
+                doubleArrayOf(5.0, 5.0),
+                doubleArrayOf(10.0, 10.0),
+                doubleArrayOf(5.0, 5.0)))) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToPolygon(arrayOf(encodedPolygon))) {
+                is Polyline.DecodeToGeoJsonResult.Success -> fail("Expected decode failure")
+                is Polyline.DecodeToGeoJsonResult.Error -> assertEquals(decodeResult.error, Polyline.DecodeError.InvalidPolygonLength)
+            }
         }
     }
 
     @Test
     fun testDecodeToPolygonWithMismatchedStartEndThrowsError() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            assertFailsWith<InvalidPolygonClosureException>(
-                message = "Expected InvalidPolygonClosureException to be thrown",
-                block = {
-                    val encodedLine = encodeFromLngLatArray(
-                        lngLatArray = arrayOf(
-                            doubleArrayOf(5.0, 5.0),
-                            doubleArrayOf(10.0, 10.0),
-                            doubleArrayOf(15.0, 15.0),
-                            doubleArrayOf(20.0, 20.0)
-                        )
-                    )
-                    decodeToPolygon(arrayOf(encodedLine))
-                })
+            Polyline.setCompressionAlgorithm(algorithm)
+            val encodedPolygon = when (val result = Polyline.encodeFromLngLatArray(arrayOf(
+                doubleArrayOf(5.0, 5.0),
+                doubleArrayOf(10.0, 10.0),
+                doubleArrayOf(15.0, 15.0),
+                doubleArrayOf(20.0, 20.0)
+                ))) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToPolygon(arrayOf(encodedPolygon))) {
+                is Polyline.DecodeToGeoJsonResult.Success -> fail("Expected decode failure")
+                is Polyline.DecodeToGeoJsonResult.Error -> assertEquals(decodeResult.error, Polyline.DecodeError.InvalidPolygonClosure)
+            }
         }
     }
 
     @Test
     fun testDecodeToLineStringProducesValidResults() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(doubleArrayOf(132.0, -67.0), doubleArrayOf(38.0, 62.0))
-                val encodedLine = encodeFromLngLatArray(coords)
-                val geojson = decodeToLineString(encodedLine)
-
-                validateLineString(geojson, coords)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(doubleArrayOf(132.0, -67.0), doubleArrayOf(38.0, 62.0))
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToLineString(encodedLine)) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validateLineString(decodeResult.geojson, coords)
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -307,21 +331,24 @@ class PolylineTest {
     @Test
     fun testDecodeToLineStringFeatureProducesValidResults() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(doubleArrayOf(132.0, -67.0), doubleArrayOf(38.0, 62.0))
-                val encodedLine = encodeFromLngLatArray(lngLatArray = coords)
-                val geojson = decodeToLineStringFeature(encodedLine)
-                validateLineStringFeature(
-                    geojson,
-                    coords,
-                    CompressionParameters(
-                        precisionLngLat = if (algorithm == CompressionAlgorithm.Polyline5) 5 else DefaultPrecision
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(doubleArrayOf(132.0, -67.0), doubleArrayOf(38.0, 62.0))
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToLineStringFeature(encodedLine)) {
+                is Polyline.DecodeToGeoJsonResult.Success -> {
+                    validateLineStringFeature(
+                        decodeResult.geojson,
+                        coords,
+                        Polyline.CompressionParameters(
+                            precisionLngLat = if (algorithm == Polyline.CompressionAlgorithm.Polyline5) 5 else 6
+                        )
                     )
-                )
-            } catch (e: Exception) {
-                fail("Unexpected error")
+                }
+
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -329,20 +356,20 @@ class PolylineTest {
     @Test
     fun testDecodeToPolygonProducesValidResults() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(
-                    doubleArrayOf(0.0, 0.0),
-                    doubleArrayOf(10.0, 0.0),
-                    doubleArrayOf(5.0, 10.0),
-                    doubleArrayOf(0.0, 0.0)
-                )
-                val encodedRing = encodeFromLngLatArray(coords)
-                val geojson = decodeToPolygon(arrayOf(encodedRing))
-                validatePolygon(geojson, arrayOf(coords))
-            } catch (e: Exception) {
-                fail("Unexpected error")
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(10.0, 0.0),
+                doubleArrayOf(5.0, 10.0),
+                doubleArrayOf(0.0, 0.0)
+            )
+            val encodedPolygon = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToPolygon(arrayOf(encodedPolygon))) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validatePolygon(decodeResult.geojson, arrayOf(coords))
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -350,26 +377,28 @@ class PolylineTest {
     @Test
     fun testDecodeToPolygonFeatureProducesValidResults() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(
-                    doubleArrayOf(0.0, 0.0),
-                    doubleArrayOf(10.0, 0.0),
-                    doubleArrayOf(5.0, 10.0),
-                    doubleArrayOf(0.0, 0.0)
-                )
-                val encodedRing = encodeFromLngLatArray(coords)
-                val geojson = decodeToPolygonFeature(arrayOf(encodedRing))
-                validatePolygonFeature(
-                    geojson,
-                    arrayOf(coords),
-                    CompressionParameters(
-                        precisionLngLat = if (algorithm == CompressionAlgorithm.Polyline5) 5 else DefaultPrecision
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(10.0, 0.0),
+                doubleArrayOf(5.0, 10.0),
+                doubleArrayOf(0.0, 0.0)
+            )
+            val encodedPolygon = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToPolygonFeature(arrayOf(encodedPolygon))) {
+                is Polyline.DecodeToGeoJsonResult.Success -> {
+                    validatePolygonFeature(
+                        decodeResult.geojson,
+                        arrayOf(coords),
+                        Polyline.CompressionParameters(
+                            precisionLngLat = if (algorithm == Polyline.CompressionAlgorithm.Polyline5) 5 else 6
+                        )
                     )
-                )
-            } catch (e: Exception) {
-                fail("Unexpected error")
+                }
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -377,28 +406,33 @@ class PolylineTest {
     @Test
     fun testDecodeToPolygonWithCWOuterRingProducesCCWResult() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(
-                    doubleArrayOf(0.0, 0.0),
-                    doubleArrayOf(0.0, 10.0),
-                    doubleArrayOf(10.0, 10.0),
-                    doubleArrayOf(10.0, 0.0),
-                    doubleArrayOf(0.0, 0.0)
-                )
-                val encodedRing = encodeFromLngLatArray(coords)
-                val geojson = decodeToPolygon(arrayOf(encodedRing))
-                val ccwCoords = arrayOf(
-                    doubleArrayOf(0.0, 0.0),
-                    doubleArrayOf(10.0, 0.0),
-                    doubleArrayOf(10.0, 10.0),
-                    doubleArrayOf(0.0, 10.0),
-                    doubleArrayOf(0.0, 0.0)
-                )
-                validatePolygon(geojson, arrayOf(ccwCoords))
-            } catch (e: Exception) {
-                fail("Unexpected error")
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(0.0, 10.0),
+                doubleArrayOf(10.0, 10.0),
+                doubleArrayOf(10.0, 0.0),
+                doubleArrayOf(0.0, 0.0)
+            )
+            val ccwCoords = arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(10.0, 0.0),
+                doubleArrayOf(10.0, 10.0),
+                doubleArrayOf(0.0, 10.0),
+                doubleArrayOf(0.0, 0.0)
+            )
+            val encodedPolygon = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToPolygon(arrayOf(encodedPolygon))) {
+                is Polyline.DecodeToGeoJsonResult.Success -> {
+                    validatePolygon(
+                        decodeResult.geojson,
+                        arrayOf(ccwCoords)
+                    )
+                }
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -406,21 +440,24 @@ class PolylineTest {
     @Test
     fun testDecodeToPolygonWithCCWOuterRingProducesCCWResult() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(
-                    doubleArrayOf(0.0, 0.0),
-                    doubleArrayOf(10.0, 0.0),
-                    doubleArrayOf(10.0, 10.0),
-                    doubleArrayOf(0.0, 10.0),
-                    doubleArrayOf(0.0, 0.0)
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(10.0, 0.0),
+                doubleArrayOf(10.0, 10.0),
+                doubleArrayOf(0.0, 10.0),
+                doubleArrayOf(0.0, 0.0)
+            )
+            val encodedRing = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToPolygon((arrayOf(encodedRing)))) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validatePolygon(
+                    decodeResult.geojson,
+                    arrayOf(coords)
                 )
-                val encodedRing = encodeFromLngLatArray(coords)
-                val geojson = decodeToPolygon(arrayOf(encodedRing))
-                validatePolygon(geojson, arrayOf(coords))
-            } catch (e: Exception) {
-                fail("Unexpected error")
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -428,40 +465,40 @@ class PolylineTest {
     @Test
     fun testDecodeToPolygonWithCWInnerRingsProducesCWResult() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val clockwiseCoords = arrayOf(
-                    arrayOf(
-                        doubleArrayOf(0.0, 0.0),
-                        doubleArrayOf(10.0, 0.0),
-                        doubleArrayOf(10.0, 10.0),
-                        doubleArrayOf(0.0, 10.0),
-                        doubleArrayOf(0.0, 0.0)
-                    ), // CCW outer ring
-                    arrayOf(
-                        doubleArrayOf(2.0, 2.0),
-                        doubleArrayOf(2.0, 8.0),
-                        doubleArrayOf(8.0, 8.0),
-                        doubleArrayOf(8.0, 2.0),
-                        doubleArrayOf(2.0, 2.0)
-                    ), // CW inner ring
-                    arrayOf(
-                        doubleArrayOf(4.0, 4.0),
-                        doubleArrayOf(4.0, 6.0),
-                        doubleArrayOf(6.0, 6.0),
-                        doubleArrayOf(6.0, 4.0),
-                        doubleArrayOf(4.0, 4.0)
-                    ) // CW inner ring
-                )
-                val encodedRings = mutableListOf<String>()
-                for (ring in clockwiseCoords) {
-                    encodedRings.add(encodeFromLngLatArray(ring))
+            Polyline.setCompressionAlgorithm(algorithm)
+            val clockwiseCoords = arrayOf(
+                arrayOf(
+                    doubleArrayOf(0.0, 0.0),
+                    doubleArrayOf(10.0, 0.0),
+                    doubleArrayOf(10.0, 10.0),
+                    doubleArrayOf(0.0, 10.0),
+                    doubleArrayOf(0.0, 0.0)
+                ), // CCW outer ring
+                arrayOf(
+                    doubleArrayOf(2.0, 2.0),
+                    doubleArrayOf(2.0, 8.0),
+                    doubleArrayOf(8.0, 8.0),
+                    doubleArrayOf(8.0, 2.0),
+                    doubleArrayOf(2.0, 2.0)
+                ), // CW inner ring
+                arrayOf(
+                    doubleArrayOf(4.0, 4.0),
+                    doubleArrayOf(4.0, 6.0),
+                    doubleArrayOf(6.0, 6.0),
+                    doubleArrayOf(6.0, 4.0),
+                    doubleArrayOf(4.0, 4.0)
+                ) // CW inner ring
+            )
+            val encodedRings = mutableListOf<String>()
+            for (ring in clockwiseCoords) {
+                when (val result = Polyline.encodeFromLngLatArray((ring))) {
+                    is Polyline.EncodeResult.Success -> encodedRings.add(result.encodedData)
+                    is Polyline.EncodeResult.Error -> fail("Expected encode success")
                 }
-                val geojson = decodeToPolygon(encodedRings.toTypedArray())
-                validatePolygon(geojson, clockwiseCoords)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+            }
+            when (val decodeResult = Polyline.decodeToPolygon(encodedRings.toTypedArray())) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validatePolygon(decodeResult.geojson, clockwiseCoords)
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -469,63 +506,63 @@ class PolylineTest {
     @Test
     fun testDecodeToPolygonWithCCWInnerRingsProducesCWResult() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val counterclockwiseCoords = arrayOf(
-                    arrayOf(
-                        doubleArrayOf(0.0, 0.0),
-                        doubleArrayOf(10.0, 0.0),
-                        doubleArrayOf(10.0, 10.0),
-                        doubleArrayOf(0.0, 10.0),
-                        doubleArrayOf(0.0, 0.0)
-                    ), // CCW outer ring
-                    arrayOf(
-                        doubleArrayOf(2.0, 2.0),
-                        doubleArrayOf(8.0, 2.0),
-                        doubleArrayOf(8.0, 8.0),
-                        doubleArrayOf(2.0, 8.0),
-                        doubleArrayOf(2.0, 2.0)
-                    ), // CCW inner ring
-                    arrayOf(
-                        doubleArrayOf(4.0, 4.0),
-                        doubleArrayOf(6.0, 4.0),
-                        doubleArrayOf(6.0, 6.0),
-                        doubleArrayOf(4.0, 6.0),
-                        doubleArrayOf(4.0, 4.0)
-                    ) // CCW inner ring
-                )
-                val encodedRings = mutableListOf<String>()
-                for (ring in counterclockwiseCoords) {
-                    encodedRings.add(encodeFromLngLatArray(ring))
+            Polyline.setCompressionAlgorithm(algorithm)
+            val counterclockwiseCoords = arrayOf(
+                arrayOf(
+                    doubleArrayOf(0.0, 0.0),
+                    doubleArrayOf(10.0, 0.0),
+                    doubleArrayOf(10.0, 10.0),
+                    doubleArrayOf(0.0, 10.0),
+                    doubleArrayOf(0.0, 0.0)
+                ), // CCW outer ring
+                arrayOf(
+                    doubleArrayOf(2.0, 2.0),
+                    doubleArrayOf(8.0, 2.0),
+                    doubleArrayOf(8.0, 8.0),
+                    doubleArrayOf(2.0, 8.0),
+                    doubleArrayOf(2.0, 2.0)
+                ), // CCW inner ring
+                arrayOf(
+                    doubleArrayOf(4.0, 4.0),
+                    doubleArrayOf(6.0, 4.0),
+                    doubleArrayOf(6.0, 6.0),
+                    doubleArrayOf(4.0, 6.0),
+                    doubleArrayOf(4.0, 4.0)
+                ) // CCW inner ring
+            )
+            val encodedRings = mutableListOf<String>()
+            for (ring in counterclockwiseCoords) {
+                when (val result = Polyline.encodeFromLngLatArray((ring))) {
+                    is Polyline.EncodeResult.Success -> encodedRings.add(result.encodedData)
+                    is Polyline.EncodeResult.Error -> fail("Expected encode success")
                 }
-                val geojson = decodeToPolygon(encodedRings.toTypedArray())
-                val expectedCoords = arrayOf(
-                    arrayOf(
-                        doubleArrayOf(0.0, 0.0),
-                        doubleArrayOf(10.0, 0.0),
-                        doubleArrayOf(10.0, 10.0),
-                        doubleArrayOf(0.0, 10.0),
-                        doubleArrayOf(0.0, 0.0)
-                    ), // CCW outer ring
-                    arrayOf(
-                        doubleArrayOf(2.0, 2.0),
-                        doubleArrayOf(2.0, 8.0),
-                        doubleArrayOf(8.0, 8.0),
-                        doubleArrayOf(8.0, 2.0),
-                        doubleArrayOf(2.0, 2.0)
-                    ), // CW inner ring
-                    arrayOf(
-                        doubleArrayOf(4.0, 4.0),
-                        doubleArrayOf(4.0, 6.0),
-                        doubleArrayOf(6.0, 6.0),
-                        doubleArrayOf(6.0, 4.0),
-                        doubleArrayOf(4.0, 4.0)
-                    ) // CW inner ring
-                )
-                validatePolygon(geojson, expectedCoords)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+            }
+            val expectedCoords = arrayOf(
+                arrayOf(
+                    doubleArrayOf(0.0, 0.0),
+                    doubleArrayOf(10.0, 0.0),
+                    doubleArrayOf(10.0, 10.0),
+                    doubleArrayOf(0.0, 10.0),
+                    doubleArrayOf(0.0, 0.0)
+                ), // CCW outer ring
+                arrayOf(
+                    doubleArrayOf(2.0, 2.0),
+                    doubleArrayOf(2.0, 8.0),
+                    doubleArrayOf(8.0, 8.0),
+                    doubleArrayOf(8.0, 2.0),
+                    doubleArrayOf(2.0, 2.0)
+                ), // CW inner ring
+                arrayOf(
+                    doubleArrayOf(4.0, 4.0),
+                    doubleArrayOf(4.0, 6.0),
+                    doubleArrayOf(6.0, 6.0),
+                    doubleArrayOf(6.0, 4.0),
+                    doubleArrayOf(4.0, 4.0)
+                ) // CW inner ring
+            )
+            when (val decodeResult = Polyline.decodeToPolygon(encodedRings.toTypedArray())) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validatePolygon(decodeResult.geojson, expectedCoords)
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -533,28 +570,27 @@ class PolylineTest {
     @Test
     fun testDecodeToLineStringWithRangesOfInputsProducesValidResults() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(
-                    // A few different valid longitude values (positive, zero, negative)
-                    doubleArrayOf(167.0, 5.0),
-                    doubleArrayOf(0.0, 5.0),
-                    doubleArrayOf(-167.0, 5.0),
-                    // A few different valid latitude values (positive, zero, negative)
-                    doubleArrayOf(5.0, 87.0),
-                    doubleArrayOf(5.0, 0.0),
-                    doubleArrayOf(5.0, -87.0),
-                    // A few different high-precision values
-                    doubleArrayOf(123.45678, 76.54321),
-                    doubleArrayOf(-123.45678, -76.54321)
-                )
-                val encodedLine = encodeFromLngLatArray(coords)
-                val geojson = decodeToLineString(encodedLine)
-
-                validateLineString(geojson, coords)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(
+                // A few different valid longitude values (positive, zero, negative)
+                doubleArrayOf(167.0, 5.0),
+                doubleArrayOf(0.0, 5.0),
+                doubleArrayOf(-167.0, 5.0),
+                // A few different valid latitude values (positive, zero, negative)
+                doubleArrayOf(5.0, 87.0),
+                doubleArrayOf(5.0, 0.0),
+                doubleArrayOf(5.0, -87.0),
+                // A few different high-precision values
+                doubleArrayOf(123.45678, 76.54321),
+                doubleArrayOf(-123.45678, -76.54321)
+            )
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToLineString(encodedLine)) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validateLineString(decodeResult.geojson, coords)
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -562,53 +598,51 @@ class PolylineTest {
     @Test
     fun testDecodeToPolygonWithRangesOfInputsProducesValidResults() {
         for (algorithm in algorithms) {
-            setCompressionAlgorithm(algorithm)
-
-            try {
-                val coords = arrayOf(
-                    // A few different valid longitude values (positive, zero, negative)
-                    doubleArrayOf(167.0, 5.0),
-                    doubleArrayOf(0.0, 5.0),
-                    doubleArrayOf(-167.0, 5.0),
-                    // A few different valid latitude values (positive, zero, negative)
-                    doubleArrayOf(5.0, 87.0),
-                    doubleArrayOf(5.0, 0.0),
-                    doubleArrayOf(5.0, -87.0),
-                    // A few different high-precision values
-                    doubleArrayOf(123.45678, 76.54321),
-                    doubleArrayOf(-123.45678, -76.54321),
-                    // Close the polygon ring
-                    doubleArrayOf(167.0, 5.0)
-                )
-                val encodedLine = encodeFromLngLatArray(coords)
-                val geojson = decodeToPolygon(arrayOf(encodedLine))
-                validatePolygon(geojson, arrayOf(coords))
-            } catch (e: Exception) {
-                fail("Unexpected error")
+            Polyline.setCompressionAlgorithm(algorithm)
+            val coords = arrayOf(
+                // A few different valid longitude values (positive, zero, negative)
+                doubleArrayOf(167.0, 5.0),
+                doubleArrayOf(0.0, 5.0),
+                doubleArrayOf(-167.0, 5.0),
+                // A few different valid latitude values (positive, zero, negative)
+                doubleArrayOf(5.0, 87.0),
+                doubleArrayOf(5.0, 0.0),
+                doubleArrayOf(5.0, -87.0),
+                // A few different high-precision values
+                doubleArrayOf(123.45678, 76.54321),
+                doubleArrayOf(-123.45678, -76.54321),
+                // Close the polygon ring
+                doubleArrayOf(167.0, 5.0)
+            )
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(coords)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToPolygon(arrayOf(encodedLine))) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validatePolygon(decodeResult.geojson, arrayOf(coords))
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
 
     @Test
     fun testFlexiblePolylineDecodeInvalidHeaderThrowsError() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
         val invalidStrings = arrayOf(
             "AGgsmytFg0lxJ_rmytF_zlxJ", // Header version = 0
             "CGgsmytFg0lxJ_rmytF_zlxJ"  // Header version = 2
         )
         for (invalidString in invalidStrings) {
-            assertFailsWith<InvalidHeaderVersionException>(
-                message = "Expected InvalidHeaderVersionException",
-                block = {
-                    decodeToLngLatArray(invalidString)
-
-                })
+            when (val result = Polyline.decodeToLngLatArray(invalidString)) {
+                is Polyline.DecodeToArrayResult.Success -> fail("Expected decode error")
+                is Polyline.DecodeToArrayResult.Error -> assertEquals(Polyline.DecodeError.InvalidHeaderVersion, result.error)
+            }
         }
     }
 
     @Test
     fun testFlexiblePolylineDecodeInvalidValuesThrowsError() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
         val invalidStrings = arrayOf(
             "BGg0lxJ_zrn5K_zlxJg0rn5K", // [[-181, 5], [0, 0]] - longitude too low
             "BGg0lxJg0rn5K_zlxJ_zrn5K", // [[181, 5], [0, 0]] - longitude too high
@@ -616,18 +650,16 @@ class PolylineTest {
             "BGgsmytFg0lxJ_rmytF_zlxJ", // [[5, 91], [0, 0]] - latitude too high
         )
         for (invalidString in invalidStrings) {
-            assertFailsWith<InvalidCoordinateValueException>(
-                message = "Expected InvalidCoordinateValueException",
-                block = {
-                    decodeToLngLatArray(invalidString)
-
-                })
+            when (val result = Polyline.decodeToLngLatArray(invalidString)) {
+                is Polyline.DecodeToArrayResult.Success -> fail("Expected decode error")
+                is Polyline.DecodeToArrayResult.Error -> assertEquals(Polyline.DecodeError.InvalidCoordinateValue, result.error)
+            }
         }
     }
 
     @Test
     fun testPolyline5DecodeInvalidValuesThrowsError() {
-        setCompressionAlgorithm(CompressionAlgorithm.Polyline5)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.Polyline5)
         val invalidStrings = arrayOf(
             "_qo]~pvoa@~po]_qvoa@", // [[-181, 5], [0, 0]] - longitude too low
             "_qo]_qvoa@~po]~pvoa@", // [[181, 5], [0, 0]] - longitude too high
@@ -635,18 +667,16 @@ class PolylineTest {
             "_mljP_qo]~lljP~po]", // [[5, 91], [0, 0]] - latitude too high
         )
         for (invalidString in invalidStrings) {
-            assertFailsWith<InvalidCoordinateValueException>(
-                message = "Expected InvalidCoordinateValueException",
-                block = {
-                    decodeToLngLatArray(invalidString)
-
-                })
+            when (val result = Polyline.decodeToLngLatArray(invalidString)) {
+                is Polyline.DecodeToArrayResult.Success -> fail("Expected decode error")
+                is Polyline.DecodeToArrayResult.Error -> assertEquals(Polyline.DecodeError.InvalidCoordinateValue, result.error)
+            }
         }
     }
 
     @Test
     fun testPolyline6DecodeInvalidValuesThrowsError() {
-        setCompressionAlgorithm(CompressionAlgorithm.Polyline6)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.Polyline6)
         val invalidStrings = arrayOf(
             "_sdpH~rjfxI~rdpH_sjfxI", // [[-181, 5], [0, 0]] - longitude too low
             "_sdpH_sjfxI~rdpH~rjfxI", // [[181, 5], [0, 0]] - longitude too high
@@ -654,18 +684,16 @@ class PolylineTest {
             "_keqlD_sdpH~jeqlD~rdpH", // [[5, 91], [0, 0]] - latitude too high
         )
         for (invalidString in invalidStrings) {
-            assertFailsWith<InvalidCoordinateValueException>(
-                message = "Expected InvalidCoordinateValueException",
-                block = {
-                    decodeToLngLatArray(invalidString)
-
-                })
+            when (val result = Polyline.decodeToLngLatArray(invalidString)) {
+                is Polyline.DecodeToArrayResult.Success -> fail("Expected decode error")
+                is Polyline.DecodeToArrayResult.Error -> assertEquals(Polyline.DecodeError.InvalidCoordinateValue, result.error)
+            }
         }
     }
 
     @Test
     fun testFlexiblePolylineLngLatArrayHandlesThirdDimensionTypes() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
         val coords = arrayOf(
             doubleArrayOf(0.0, 0.0, 5.0),
             doubleArrayOf(10.0, 0.0, 0.0),
@@ -673,23 +701,24 @@ class PolylineTest {
             doubleArrayOf(0.0, 10.0, 0.0),
             doubleArrayOf(0.0, 0.0, 5.0)
         )
-        for (thirdDimension in arrayOf(ThirdDimension.Level, ThirdDimension.Altitude, ThirdDimension.Elevation)) {
-            try {
-                val encodedLine = encodeFromLngLatArray(
+        for (thirdDimension in arrayOf(Polyline.ThirdDimension.Level, Polyline.ThirdDimension.Altitude, Polyline.ThirdDimension.Elevation)) {
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(
                     lngLatArray = coords,
-                    parameters = CompressionParameters(thirdDimension = thirdDimension)
-                )
-                val result = decodeToLngLatArray(encodedLine)
-                assertTrue(result.contentDeepEquals(coords))
-            } catch (e: Exception) {
-                fail("Unexpected error")
+                    parameters = Polyline.CompressionParameters(thirdDimension = thirdDimension)
+                )) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToLngLatArray(encodedLine)) {
+                is Polyline.DecodeToArrayResult.Success -> assertTrue(decodeResult.lngLatArray.contentDeepEquals(coords))
+                is Polyline.DecodeToArrayResult.Error -> fail("Expected decode success")
             }
         }
     }
 
     @Test
     fun testFlexiblePolylineLineStringHandlesThirdDimensionTypes() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
         val coords = arrayOf(
             doubleArrayOf(0.0, 0.0, 5.0),
             doubleArrayOf(10.0, 0.0, 0.0),
@@ -697,23 +726,24 @@ class PolylineTest {
             doubleArrayOf(0.0, 10.0, 0.0),
             doubleArrayOf(0.0, 0.0, 5.0)
         )
-        for (thirdDimension in arrayOf(ThirdDimension.Level, ThirdDimension.Altitude, ThirdDimension.Elevation)) {
-            try {
-                val encodedLine = encodeFromLngLatArray(
-                    lngLatArray = coords,
-                    parameters = CompressionParameters(thirdDimension = thirdDimension)
-                )
-                val geojson = decodeToLineString(encodedLine)
-                validateLineString(geojson, coords)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+        for (thirdDimension in arrayOf(Polyline.ThirdDimension.Level, Polyline.ThirdDimension.Altitude, Polyline.ThirdDimension.Elevation)) {
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(
+                lngLatArray = coords,
+                parameters = Polyline.CompressionParameters(thirdDimension = thirdDimension)
+            )) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToLineString(encodedLine)) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validateLineString(decodeResult.geojson, coords)
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
 
     @Test
     fun testFlexiblePolylineLineStringFeatureHandlesThirdDimensionTypes() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
         val coords = arrayOf(
             doubleArrayOf(0.0, 0.0, 5.0),
             doubleArrayOf(10.0, 0.0, 0.0),
@@ -721,21 +751,22 @@ class PolylineTest {
             doubleArrayOf(0.0, 10.0, 0.0),
             doubleArrayOf(0.0, 0.0, 5.0)
         )
-        for (thirdDimension in arrayOf(ThirdDimension.Level, ThirdDimension.Altitude, ThirdDimension.Elevation)) {
-            try {
-                val parameters = CompressionParameters(thirdDimension = thirdDimension)
-                val encodedLine = encodeFromLngLatArray(coords, parameters)
-                val geojson = decodeToLineStringFeature(encodedLine)
-                validateLineStringFeature(geojson, coords, parameters)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+        for (thirdDimension in arrayOf(Polyline.ThirdDimension.Level, Polyline.ThirdDimension.Altitude, Polyline.ThirdDimension.Elevation)) {
+            val parameters = Polyline.CompressionParameters(thirdDimension = thirdDimension)
+            val encodedLine = when (val result = Polyline.encodeFromLngLatArray(coords, parameters)) {
+                is Polyline.EncodeResult.Success -> result.encodedData
+                is Polyline.EncodeResult.Error -> fail("Expected encode success")
+            }
+            when (val decodeResult = Polyline.decodeToLineStringFeature(encodedLine)) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validateLineStringFeature(decodeResult.geojson, coords, parameters)
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
 
     @Test
     fun testFlexiblePolylinePolygonHandlesThirdDimensionTypes() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
         val ringCoords = arrayOf(
             arrayOf(
                 doubleArrayOf(0.0, 0.0, 5.0),
@@ -752,28 +783,32 @@ class PolylineTest {
                 doubleArrayOf(2.0, 2.0, 5.0)
             ) // inner ring
         )
-        for (thirdDimension in arrayOf(ThirdDimension.Level, ThirdDimension.Altitude, ThirdDimension.Elevation)) {
-            try {
-                val encodedRings = mutableListOf<String>()
-                for (ring in ringCoords) {
-                    encodedRings.add(
-                        encodeFromLngLatArray(
-                            ring,
-                            CompressionParameters(thirdDimension = thirdDimension)
-                        )
+        for (thirdDimension in arrayOf(Polyline.ThirdDimension.Level, Polyline.ThirdDimension.Altitude, Polyline.ThirdDimension.Elevation)) {
+            val encodedRings = mutableListOf<String>()
+            for (ring in ringCoords) {
+                val encodedRing = when (val result = Polyline.encodeFromLngLatArray(
+                        ring,
+                        Polyline.CompressionParameters(thirdDimension = thirdDimension)
                     )
+                ) {
+                    is Polyline.EncodeResult.Success -> result.encodedData
+                    is Polyline.EncodeResult.Error -> fail("Expected encode success")
                 }
-                val geojson = decodeToPolygon(encodedRings.toTypedArray())
-                validatePolygon(geojson, ringCoords)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+                encodedRings.add(encodedRing)
+            }
+            when (val decodeResult = Polyline.decodeToPolygon(encodedRings.toTypedArray())) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validatePolygon(
+                    decodeResult.geojson,
+                    ringCoords
+                )
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
 
     @Test
     fun testFlexiblePolylinePolygonFeatureHandlesThirdDimensionTypes() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
         val ringCoords = arrayOf(
             arrayOf(
                 doubleArrayOf(0.0, 0.0, 5.0),
@@ -790,19 +825,23 @@ class PolylineTest {
                 doubleArrayOf(2.0, 2.0, 5.0)
             ) // inner ring
         )
-        for (thirdDimension in arrayOf(ThirdDimension.Level, ThirdDimension.Altitude, ThirdDimension.Elevation)) {
-            try {
-                val parameters = CompressionParameters(thirdDimension = thirdDimension)
-                val encodedRings = mutableListOf<String>()
-                for (ring in ringCoords) {
-                    encodedRings.add(
-                        encodeFromLngLatArray(ring, parameters)
-                    )
+        for (thirdDimension in arrayOf(Polyline.ThirdDimension.Level, Polyline.ThirdDimension.Altitude, Polyline.ThirdDimension.Elevation)) {
+            val parameters = Polyline.CompressionParameters(thirdDimension = thirdDimension)
+            val encodedRings = mutableListOf<String>()
+            for (ring in ringCoords) {
+                val encodedRing = when (val result = Polyline.encodeFromLngLatArray(ring, parameters)) {
+                    is Polyline.EncodeResult.Success -> result.encodedData
+                    is Polyline.EncodeResult.Error -> fail("Expected encode success")
                 }
-                val geojson = decodeToPolygonFeature(encodedRings.toTypedArray())
-                validatePolygonFeature(geojson, ringCoords, parameters)
-            } catch (e: Exception) {
-                fail("Unexpected error")
+                encodedRings.add(encodedRing)
+            }
+            when (val decodeResult = Polyline.decodeToPolygonFeature(encodedRings.toTypedArray())) {
+                is Polyline.DecodeToGeoJsonResult.Success -> validatePolygonFeature(
+                    decodeResult.geojson,
+                    ringCoords,
+                    parameters
+                )
+                is Polyline.DecodeToGeoJsonResult.Error -> fail("Expected decode success")
             }
         }
     }
@@ -816,46 +855,43 @@ class PolylineTest {
             doubleArrayOf(0.0, 10.0, 0.0),
             doubleArrayOf(0.0, 0.0, 5.0)
         )
-        for (algorithm in arrayOf(CompressionAlgorithm.Polyline5, CompressionAlgorithm.Polyline6)) {
-            setCompressionAlgorithm(algorithm)
-            assertFailsWith<InconsistentCoordinateDimensionsException>(
-                message = "Expected InconsistentCoordinateDimensionsException",
-                block = {
-                encodeFromLngLatArray(
+        for (algorithm in arrayOf(Polyline.CompressionAlgorithm.Polyline5, Polyline.CompressionAlgorithm.Polyline6)) {
+            Polyline.setCompressionAlgorithm(algorithm)
+            when (val result = Polyline.encodeFromLngLatArray(
                     coords,
-                    CompressionParameters(thirdDimension = ThirdDimension.Altitude)
-                )
-                })
+                        Polyline.CompressionParameters(thirdDimension = Polyline.ThirdDimension.Altitude)
+                )) {
+                is Polyline.EncodeResult.Success -> fail("Expected encode error")
+                is Polyline.EncodeResult.Error -> assertEquals(result.error, Polyline.EncodeError.InconsistentCoordinateDimensions)
+            }
         }
     }
 
     @Test
     fun testFlexiblePolylineEncodeThrowsErrorWithNegative2DPrecision() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
 
         val coords = arrayOf(doubleArrayOf(0.0, 0.0, 5.0), doubleArrayOf(10.0, 0.0, 0.0))
-        assertFailsWith<InvalidPrecisionValueException>(
-            message = "Expected InvalidPrecisionValueException",
-            block = {
-                encodeFromLngLatArray(
-                    coords,
-                    CompressionParameters(precisionLngLat = -5)
-                )
-            })
+        when (val result = Polyline.encodeFromLngLatArray(
+            coords,
+            Polyline.CompressionParameters(precisionLngLat = -5)
+        )) {
+            is Polyline.EncodeResult.Success -> fail("Expected encode error")
+            is Polyline.EncodeResult.Error -> assertEquals(result.error, Polyline.EncodeError.InvalidPrecisionValue)
+        }
     }
 
     @Test
     fun testFlexiblePolylineEncodeThrowsErrorWithNegative3DPrecision() {
-        setCompressionAlgorithm(CompressionAlgorithm.FlexiblePolyline)
+        Polyline.setCompressionAlgorithm(Polyline.CompressionAlgorithm.FlexiblePolyline)
 
         val coords = arrayOf(doubleArrayOf(0.0, 0.0, 5.0), doubleArrayOf(10.0, 0.0, 0.0))
-        assertFailsWith<InvalidPrecisionValueException>(
-            message = "Expected InvalidPrecisionValueException",
-            block = {
-                encodeFromLngLatArray(
-                    coords,
-                    CompressionParameters(precisionThirdDimension = -5)
-                )
-            })
+        when (val result = Polyline.encodeFromLngLatArray(
+            coords,
+            Polyline.CompressionParameters(precisionThirdDimension = -5)
+        )) {
+            is Polyline.EncodeResult.Success -> fail("Expected encode error")
+            is Polyline.EncodeResult.Error -> assertEquals(result.error, Polyline.EncodeError.InvalidPrecisionValue)
+        }
     }
 }

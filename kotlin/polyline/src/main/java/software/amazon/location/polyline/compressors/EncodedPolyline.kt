@@ -3,7 +3,7 @@
 
 package software.amazon.location.polyline.compressors
 
-import software.amazon.location.polyline.CompressionParameters
+import software.amazon.location.polyline.Polyline
 import software.amazon.location.polyline.DataCompressor
 import software.amazon.location.polyline.algorithm.PolylineDecoder
 import software.amazon.location.polyline.algorithm.PolylineEncoder
@@ -13,7 +13,7 @@ import software.amazon.location.polyline.algorithm.PolylineEncoder
 // This algorithm is commonly used with either 5 or 6 bits of precision.
 // To improve usability and decrease user error, we present Polyline5 and Polyline6
 // as two distinct compression algorithms.
-open class EncodedPolyline(private val precision: Int) : DataCompressor() {
+internal open class EncodedPolyline(private val precision: Int) : DataCompressor() {
     private val dataContainsHeader = false
     private val polylineEncodingTable = "?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     private val polylineDecodingTable = intArrayOf(
@@ -31,17 +31,17 @@ open class EncodedPolyline(private val precision: Int) : DataCompressor() {
 
     override fun compressLngLatArray(
         lngLatArray: Array<DoubleArray>,
-        parameters: CompressionParameters
+        parameters: Polyline.CompressionParameters
     ): String {
         return encoder.encode(lngLatArray, precision)
     }
 
-    override fun decompressLngLatArray(compressedData: String): Pair<Array<DoubleArray>, CompressionParameters> {
+    override fun decompressLngLatArray(compressedData: String): Pair<Array<DoubleArray>, Polyline.CompressionParameters> {
         val (lngLatArray, header) = decoder.decode(compressedData, precision)
-        return Pair(lngLatArray, CompressionParameters(header.precisionLngLat))
+        return Pair(lngLatArray, Polyline.CompressionParameters(header.precisionLngLat))
     }
 }
 
 // Polyline5 and Polyline6 encodes/decodes compressed data with 5 or 6 bits of precision respectively.
-class Polyline5 : EncodedPolyline(5)
-class Polyline6 : EncodedPolyline(6)
+internal class Polyline5 : EncodedPolyline(5)
+internal class Polyline6 : EncodedPolyline(6)
