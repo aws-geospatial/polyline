@@ -51,35 +51,51 @@ object Polyline {
         val thirdDimension: ThirdDimension = ThirdDimension.None
     )
 
-    // Decode errors
+    /** The decode error types. These provide more information on what went wrong during decoding. */
     enum class DecodeError {
+        /** Trying to decode an empty encoded polyline is considered an error. */
         EmptyInput,
+        /** An encoded character was found that isn't supported by the decoding algorithm. */
         InvalidEncodedCharacter,
+        /** The encoded data has a bit saying more data exists, but no more data exists. */
         ExtraContinueBit,
+        /** The FlexiblePolyline header version is an unsupported version number. */
         InvalidHeaderVersion,
+        /** The decoded coordinate has < 2 dimensions. */
         MissingCoordinateDimension,
+        /** The lng/lat values in the decoded coordinate are outside the valid ranges. */
         InvalidCoordinateValue,
+        /** LineString lng/lat coordinates need to contain at least 2 points. */
         InvalidLineStringLength,
+        /** Polygon lng/lat coordinates need to contain at least 4 points. */
         InvalidPolygonLength,
+        /** Polygon lng/lat coordinates need to have the same start and end point to close the polygon. */
         InvalidPolygonClosure
     }
 
+    /** The encode error types. These provide more information on what went wrong during encoding. */
     enum class EncodeError {
+        /** Encoding precision needs to be between 0 and 11 digits of precision. */
         InvalidPrecisionValue,
+        /** All coordinates need to consistently either be 2D or 3D. */
         InconsistentCoordinateDimensions,
+        /** The lng/lat values in the coordinate are outside the valid ranges. */
         InvalidCoordinateValue
     }
 
+    /** Encoding result. */
     sealed class EncodeResult {
         data class Success(val encodedData: String) : EncodeResult()
         data class Error(val error:EncodeError) : EncodeResult()
     }
 
+    /** Decoding result for decodeToLngLatArray() */
     sealed class DecodeToArrayResult {
         data class Success(val lngLatArray: Array<DoubleArray>) : DecodeToArrayResult()
         data class Error(val error:DecodeError) : DecodeToArrayResult()
     }
 
+    /** Decoding result for any decode*() method that decodes to GeoJson. */
     sealed class DecodeToGeoJsonResult {
         data class Success(val geojson: String) : DecodeToGeoJsonResult()
         data class Error(val error:DecodeError) : DecodeToGeoJsonResult()
@@ -102,7 +118,6 @@ object Polyline {
 
     /** Set the compression algorithm to use for subsequent encode/decode calls.
      * @param compressionType The compression algorithm to use.
-     * @throws IllegalArgumentException if an invalid compression algorithm is specified.
      */
     fun setCompressionAlgorithm(compressionType: CompressionAlgorithm = CompressionAlgorithm.FlexiblePolyline) {
         compressor = when (compressionType) {
@@ -126,10 +141,10 @@ object Polyline {
      * ```
      * @param lngLatArray  An array of lng/lat positions to encode. The positions may contain an optional 3rd dimension.
      * @param parameters Optional compression parameters. These are currently only used by the FlexiblePolyline algorithm.
-     * @returns An encoded string containing the compressed coordinate values.
-     * @throws IllegalArgumentException if the input data contains no coordinate pairs,
-     * latitude values outside of -90, 90, longitude values outside of -180, 180,
-     * data that isn't 2-dimensional or 3-dimensional, or data that is 3-dimensional with a compressor that doesn't support 3D data.
+     * @returns An encoded string containing the compressed coordinate values, or an EncodeError
+     * if the input data contains no coordinate pairs, latitude values outside of -90, 90, longitude
+     * values outside of -180, 180, data that isn't 2-dimensional or 3-dimensional,
+     * or data that is 3-dimensional with a compressor that doesn't support 3D data.
      */
     fun encodeFromLngLatArray(
         lngLatArray: Array<DoubleArray>,
@@ -146,8 +161,8 @@ object Polyline {
      * use either {@link decodeToLineStringFeature} or {@link decodeToPolygonFeature} instead.
      * Only use this method when you want to use the coordinate data directly.
      * @param compressedData  The encoded data string to decode. The data is expected to have valid lat/lng values.
-     * @returns An array of coordinate value arrays.
-     * @throws IllegalArgumentException if the encodedData contains invalid characters, no coordinate pairs,
+     * @returns An array of coordinate value arrays or a DecodeError if the encodedData
+     * contains invalid characters, no coordinate pairs,
      * latitude values outside of -90, 90, or longitude values outside of -180, 180.
      * @example
      * An example of decoded data:
@@ -170,8 +185,8 @@ object Polyline {
      * Only use this method when you plan to manipulate the LineString further as opposed to using it directly as a source.
      * @param encodedData  The encoded data string to decode. The data is expected to have a minimum of two
      * coordinate pairs with valid lat/lng values.
-     * @returns A GeoJSON LineString representing the decoded data.
-     * @throws Error() if the encodedData contains invalid characters, < 2 coordinate pairs,
+     * @returns A GeoJSON LineString representing the decoded data or a DecodeError if the
+     * encodedData contains invalid characters, < 2 coordinate pairs,
      * latitude values outside of [-90, 90], or longitude values outside of [-180, 180].
      * @example
      * An example of a decoded LineString:
@@ -202,8 +217,8 @@ object Polyline {
      * expected to have a minimum of four coordinate pairs with valid lat/lng data, and the last coordinate pair
      * must match the first to make an explicit ring.
      * @returns A GeoJSON Polygon representing the decoded data. The first entry in the output coordinates
-     * represents the outer ring and any remaining entries represent inner rings.
-     * @throws Error() if the encodedData contains invalid characters, < 4 coordinate pairs, first/last coordinates that
+     * represents the outer ring and any remaining entries represent inner rings. It can also return
+     * a DecodeError if the encodedData contains invalid characters, < 4 coordinate pairs, first/last coordinates that
      * aren't approximately equal, latitude values outside of [-90, 90], or longitude values outside of [-180, 180].
      * @example
      * An example of a decoded Polygon:
@@ -225,8 +240,8 @@ object Polyline {
     /** Decode the provided encoded data string into a GeoJSON Feature containing a LineString.
      * @param encodedData  The encoded data string to decode. The data is expected to have a minimum of two
      * coordinate pairs with valid lat/lng values.
-     * @returns A GeoJSON Feature containing a LineString that represents the decoded data.
-     * @throws Error() if the encodedData contains invalid characters, < 2 coordinate pairs,
+     * @returns A GeoJSON Feature containing a LineString that represents the decoded data or a
+     * DecodeError if the encodedData contains invalid characters, < 2 coordinate pairs,
      * latitude values outside of [-90, 90], or longitude values outside of [-180, 180]
      * @example
      * An example of a decoded LineString as a Feature:
@@ -244,27 +259,13 @@ object Polyline {
      *   }
      * }
      * ```
-     * The result of this method can be used with MapLibre's `addSource` to add a named data source or embedded directly
-     * with MapLibre's `addLayer` to both add and render the result:
-     * ```javascript
-     * var decodedGeoJSON = polylineDecoder.decodeToLineStringFeature(encodedRoutePolyline);
-     * map.addLayer({
-     *   id: 'route',
-     *   type: 'line',
-     *     source: {
-     *       type: 'geojson',
-     *       data: decodedGeoJSON
-     *     },
-     *     layout: {
-     *       'line-join': 'round',
-     *       'line-cap': 'round'
-     *     },
-     *       paint: {
-     *         'line-color': '#3887be',
-     *         'line-width': 5,
-     *         'line-opacity': 0.75
-     *       }
-     * });
+     * The result of this method can be used with MapLibre's `addSource` to add a named data source:
+     * ```kotlin
+     * val decodedGeoJSON = when (val result = Polyline.decodeToLineStringFeature(routePolyline)) {
+     *   is Polyline.DecodeToGeoJsonResult.Success -> result.geojson
+     *   is Polyline.DecodeToGeoJsonResult.Error -> ""
+     *   }
+     * style.addSource(GeoJsonSource("polylineSource", decodedGeoJSON, GeoJsonOptions().withLineMetrics(true)))
      * ```
      */
      fun decodeToLineStringFeature(encodedData: String): DecodeToGeoJsonResult {
@@ -280,7 +281,7 @@ object Polyline {
      * must match the first to make an explicit ring.
      * @returns A GeoJSON Feature containing a Polygon that represents the decoded data. The first entry in the
      * output coordinates represents the outer ring and any remaining entries represent inner rings.
-     * @throws Error() if the encodedData contains invalid characters, < 4 coordinate pairs, first/last coordinates that
+     * Returns DecodeError if the encodedData contains invalid characters, < 4 coordinate pairs, first/last coordinates that
      * aren't approximately equal, latitude values outside of [-90, 90], or longitude values outside of [-180, 180].
      * @example
      * An example of a decoded Polygon as a Feature:
@@ -298,24 +299,15 @@ object Polyline {
      *   }
      * }
      * ```
-     * The result of this method can be used with MapLibre's `addSource` to add a named data source or embedded directly
-     * with MapLibre's `addLayer` to both add and render the result:
-     * ```javascript
-     * var decodedGeoJSON = polylineDecoder.decodeToPolygonFeature(encodedIsolinePolygons);
-     * map.addLayer({
-     *   id: 'isoline',
-     *   type: 'fill',
-     *     source: {
-     *       type: 'geojson',
-     *       data: decodedGeoJSON
-     *     },
-     *     layout: {},
-     *     paint: {
-     *       'fill-color': '#FF0000',
-     *       'fill-opacity': 0.6
-    }
-     * });
+     * The result of this method can be used with MapLibre's `addSource` to add a named data source:
+     * ```kotlin
+     * val decodedGeoJSON = when (val result = Polyline.decodeToPolygonFeature(isolinePolyline)) {
+     *   is Polyline.DecodeToGeoJsonResult.Success -> result.geojson
+     *   is Polyline.DecodeToGeoJsonResult.Error -> ""
+     *   }
+     * style.addSource(GeoJsonSource("polylineSource", decodedGeoJSON, GeoJsonOptions().withLineMetrics(true)))
      * ```
+
      */
     fun decodeToPolygonFeature(encodedData: Array<String>): DecodeToGeoJsonResult {
         return compressor.decodeToPolygonFeature(encodedData)

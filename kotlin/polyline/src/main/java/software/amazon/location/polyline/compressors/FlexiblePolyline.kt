@@ -43,7 +43,7 @@ internal class FlexiblePolyline : DataCompressor() {
     override fun compressLngLatArray(
         lngLatArray: Array<DoubleArray>,
         parameters: Polyline.CompressionParameters
-    ): String {
+    ): PolylineEncoder.CompressResult {
         return encoder.encode(
                 lngLatArray = lngLatArray,
                 precision = parameters.precisionLngLat,
@@ -52,8 +52,7 @@ internal class FlexiblePolyline : DataCompressor() {
             )
     }
 
-    override fun decompressLngLatArray(compressedData: String): Pair<Array<DoubleArray>, Polyline.CompressionParameters> {
-       val (lngLatArray, header) = decoder.decode(encoded = compressedData)
-        return Pair(lngLatArray, header)
+    override fun decompressLngLatArray(compressedData: String): PolylineDecoder.DecompressResult {
+       return decoder.decode(encoded = compressedData)
     }
 }

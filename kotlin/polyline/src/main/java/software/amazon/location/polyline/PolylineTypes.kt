@@ -5,6 +5,3 @@ package software.amazon.location.polyline
 
 /** The version of flexible-polyline that's supported by this implementation */
 internal const val FlexiblePolylineFormatVersion = 1
-
-internal class EncodeException(override val message : String, val err : Polyline.EncodeError) : Exception(message)
-internal class DecodeException(override val message : String, val err : Polyline.DecodeError) : Exception(message)

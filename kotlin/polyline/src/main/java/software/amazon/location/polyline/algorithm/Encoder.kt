@@ -19,7 +19,6 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.pow
 import software.amazon.location.polyline.Polyline
-import software.amazon.location.polyline.EncodeException
 import software.amazon.location.polyline.FlexiblePolylineFormatVersion
 
 /** Encodes lng/lat coordinate arrays into polyline strings
@@ -33,6 +32,10 @@ internal class PolylineEncoder(
     private val encodingTable: String,
     private val includeHeader: Boolean
 ) {
+    sealed class CompressResult {
+        data class Success(val encodedData: String) : CompressResult()
+        data class Error(val error: Polyline.EncodeError) : CompressResult()
+    }
 
     // The original polyline algorithm supposedly uses "round to nearest, ties away from 0"
     // for its rounding rule. Flexible-polyline uses the rounding rules of the implementing
@@ -43,22 +46,21 @@ internal class PolylineEncoder(
         return if (value >= 0.0) rounded.toLong() else (-rounded).toLong()
     }
 
-    @Throws(EncodeException::class)
     fun encode(
         lngLatArray: Array<DoubleArray>,
         precision: Int,
         thirdDim: Polyline.ThirdDimension = Polyline.ThirdDimension.None,
         thirdDimPrecision: Int = 0
-    ): String {
+    ): CompressResult {
         if (precision < 0 || precision > 11) {
-            throw EncodeException("Invalid precision value, the valid range is 0 - 11", Polyline.EncodeError.InvalidPrecisionValue)
+            return CompressResult.Error(Polyline.EncodeError.InvalidPrecisionValue)
         }
         if (thirdDimPrecision < 0 || thirdDimPrecision > 11) {
-            throw EncodeException("Invalid precision value, the valid range is 0 - 11", Polyline.EncodeError.InvalidPrecisionValue)
+            return CompressResult.Error(Polyline.EncodeError.InvalidPrecisionValue)
         }
 
         if (lngLatArray.isEmpty()) {
-            return ""
+            return CompressResult.Success("")
         }
 
         val numDimensions = if (thirdDim != Polyline.ThirdDimension.None) 3 else 2
@@ -92,7 +94,7 @@ internal class PolylineEncoder(
 
         for (coordinate in lngLatArray) {
             if (coordinate.size != numDimensions) {
-                throw EncodeException("All the coordinates need to have the same number of dimensions", Polyline.EncodeError.InconsistentCoordinateDimensions)
+                return CompressResult.Error(Polyline.EncodeError.InconsistentCoordinateDimensions)
             }
 
             for (dimension in 0 until numDimensions) {
@@ -101,7 +103,7 @@ internal class PolylineEncoder(
                 val inputValue = coordinate[inputDimensionIndex[dimension]]
                 // While looping through, also verify the input data is valid
                 if (abs(inputValue) > maxAllowedValues[dimension]) {
-                    throw EncodeException("Latitude values need to be in [-90, 90] and longitude values need to be in [-180, 180]", Polyline.EncodeError.InvalidCoordinateValue)
+                    return CompressResult.Error(Polyline.EncodeError.InvalidCoordinateValue)
                 }
                 // Scale the value based on the number of digits of precision, encode the delta between
                 // it and the previous value to the output, and track it as the previous value for encoding
@@ -112,7 +114,7 @@ internal class PolylineEncoder(
             }
         }
 
-        return output
+        return CompressResult.Success(output)
     }
 
     private fun encodeHeader(

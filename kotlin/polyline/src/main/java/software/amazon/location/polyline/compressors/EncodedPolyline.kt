@@ -32,13 +32,12 @@ internal open class EncodedPolyline(private val precision: Int) : DataCompressor
     override fun compressLngLatArray(
         lngLatArray: Array<DoubleArray>,
         parameters: Polyline.CompressionParameters
-    ): String {
+    ): PolylineEncoder.CompressResult {
         return encoder.encode(lngLatArray, precision)
     }
 
-    override fun decompressLngLatArray(compressedData: String): Pair<Array<DoubleArray>, Polyline.CompressionParameters> {
-        val (lngLatArray, header) = decoder.decode(compressedData, precision)
-        return Pair(lngLatArray, Polyline.CompressionParameters(header.precisionLngLat))
+    override fun decompressLngLatArray(compressedData: String): PolylineDecoder.DecompressResult {
+        return decoder.decode(compressedData, precision)
     }
 }
 

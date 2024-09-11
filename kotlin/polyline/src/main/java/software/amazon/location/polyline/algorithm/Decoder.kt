@@ -5,7 +5,6 @@ package software.amazon.location.polyline.algorithm
 
 import kotlin.math.abs
 import kotlin.math.pow
-import software.amazon.location.polyline.DecodeException
 import software.amazon.location.polyline.FlexiblePolylineFormatVersion
 import software.amazon.location.polyline.Polyline
 
@@ -20,16 +19,39 @@ internal class PolylineDecoder(
     private val decodingTable: IntArray,
     private val containsHeader: Boolean
 ) {
+    sealed class DecompressResult {
+        data class Success(val lngLatArray: Array<DoubleArray>, val parameters: Polyline.CompressionParameters) : DecompressResult()
+        data class Error(val error: Polyline.DecodeError) : DecompressResult()
+    }
+
+    private sealed class DecodeValueResult {
+        data class Success(val value:Long, val nextIndex:Int) : DecodeValueResult()
+        data class Error(val error: Polyline.DecodeError) : DecodeValueResult()
+
+    }
+
+    private sealed class DecodeHeaderResult {
+        data class Success(val parameters:Polyline.CompressionParameters, val nextIndex:Int) : DecodeHeaderResult()
+        data class Error(val error: Polyline.DecodeError) : DecodeHeaderResult()
+
+    }
     // Given an encoded string and a starting index, this decodes a single encoded signed value.
     // The decoded value will be an integer that still needs the decimal place moved over based
     // on the number of digits of encoded precision.
-    @Throws(DecodeException::class)
     private fun decodeSignedValue(
         encoded: String,
         startIndex: Int
-    ): Pair<Long, Int> {
+    ): DecodeValueResult {
         // decode an unsigned value
-        val (unsignedValue, nextIndex) = decodeUnsignedValue(encoded, startIndex)
+        val unsignedValue : Long
+        val nextIndex : Int
+        when (val result = decodeUnsignedValue(encoded, startIndex)) {
+            is DecodeValueResult.Success -> {
+                unsignedValue = result.value
+                nextIndex = result.nextIndex
+            }
+            is DecodeValueResult.Error -> return result
+        }
 
         // If the unsigned value has a 1 encoded in its least significant bit,
         // it's negative, so flip the bits.
@@ -41,18 +63,17 @@ internal class PolylineDecoder(
         // Shift the result by one to remove the encoded sign bit.
         signedValue = signedValue shr 1
 
-        return Pair(signedValue, nextIndex)
+        return DecodeValueResult.Success(signedValue, nextIndex)
     }
 
     // Given an encoded string and a starting index, this decodes a single encoded
     // unsigned value. The flexible-polyline algorithm uses this directly to decode
     // the header bytes, since those are encoded without the sign bit as the header
     // values are known to be unsigned (which saves 2 bits).
-    @Throws(DecodeException::class)
     private fun decodeUnsignedValue(
         encoded: String,
         startIndex: Int
-    ): Pair<Long, Int> {
+    ): DecodeValueResult {
         var result: Long = 0
         var shift = 0
         var index = startIndex
@@ -65,7 +86,7 @@ internal class PolylineDecoder(
             val charCode = encoded[index].code
             val value = decodingTable[charCode]
             if (value < 0) {
-                throw DecodeException("Invalid input, the encoded character doesn't exist in the decoding table", Polyline.DecodeError.InvalidEncodedCharacter)
+                return DecodeValueResult.Error(Polyline.DecodeError.InvalidEncodedCharacter)
             }
             result = result or (value.and(0x1f).toLong() shl shift)
             shift += 5
@@ -75,42 +96,53 @@ internal class PolylineDecoder(
             // We also return the index, which represents the starting index of the
             // next value to decode.
             if (value.and(0x20) == 0) {
-                return Pair(result, index)
+                return DecodeValueResult.Success(result, index)
             }
         }
 
         // If we've run out of encoded characters without finding an empty 6th bit,
         // something has gone wrong.
-        throw DecodeException("Invalid encoding, the last block contained an extra 0x20 'continue' bit", Polyline.DecodeError.ExtraContinueBit)
+        return DecodeValueResult.Error(Polyline.DecodeError.ExtraContinueBit)
     }
 
-    @Throws(DecodeException::class)
-    private fun decodeHeader(encoded: String): Pair<Polyline.CompressionParameters, Int> {
+    private fun decodeHeader(encoded: String): DecodeHeaderResult {
         // If the data has a header, the first value is expected to be the header version
         // and the second value is compressed metadata containing precision and dimension information.
-        val (headerVersion, metadataIndex) = decodeUnsignedValue(encoded, 0)
-        if (headerVersion.toInt() != FlexiblePolylineFormatVersion) {
-            throw DecodeException("The decoded header has an unknown version number", Polyline.DecodeError.InvalidHeaderVersion)
+        val headerVersion : Long
+        val metadataIndex : Int
+
+        when (val result = decodeUnsignedValue(encoded, 0)) {
+            is DecodeValueResult.Success -> {
+                headerVersion = result.value
+                metadataIndex = result.nextIndex
+            }
+            is DecodeValueResult.Error -> return DecodeHeaderResult.Error(result.error)
         }
 
-        val (metadata, nextIndex) = decodeUnsignedValue(encoded, metadataIndex)
-        val header = Polyline.CompressionParameters(
-            precisionLngLat = (metadata and 0x0f).toInt(),
-            precisionThirdDimension = (metadata shr 7 and 0x0f).toInt(),
-            thirdDimension = Polyline.ThirdDimension.entries[(metadata shr 4 and 0x07).toInt()]
-        )
+        if (headerVersion.toInt() != FlexiblePolylineFormatVersion) {
+            return DecodeHeaderResult.Error(Polyline.DecodeError.InvalidHeaderVersion)
+        }
 
-        return Pair(header, nextIndex)
+        return when (val result = decodeUnsignedValue(encoded, metadataIndex)) {
+            is DecodeValueResult.Success -> DecodeHeaderResult.Success(
+                Polyline.CompressionParameters(
+                    precisionLngLat = (result.value and 0x0f).toInt(),
+                    precisionThirdDimension = (result.value shr 7 and 0x0f).toInt(),
+                    thirdDimension = Polyline.ThirdDimension.entries[(result.value shr 4 and 0x07).toInt()]
+                ),
+                result.nextIndex
+            )
+            is DecodeValueResult.Error -> DecodeHeaderResult.Error(result.error)
+        }
     }
 
-    @Throws(DecodeException::class)
     fun decode(
         encoded: String,
         encodePrecision: Int = 0
-    ): Pair<Array<DoubleArray>, Polyline.CompressionParameters> {
+    ): DecompressResult {
         // Empty input strings are considered invalid.
         if (encoded.isEmpty()) {
-            throw DecodeException("Empty input string", Polyline.DecodeError.EmptyInput)
+            return DecompressResult.Error(Polyline.DecodeError.EmptyInput)
         }
 
         // If the data doesn't have a header, default to the passed-in precision and no 3rd dimension.
@@ -124,9 +156,13 @@ internal class PolylineDecoder(
         var index = 0
 
         if (containsHeader) {
-            val (decodedHeader, nextIndex) = decodeHeader(encoded)
-            header = decodedHeader
-            index = nextIndex
+            when (val result = decodeHeader(encoded)) {
+                is DecodeHeaderResult.Success -> {
+                    header = result.parameters
+                    index = result.nextIndex
+                }
+                is DecodeHeaderResult.Error -> return DecompressResult.Error(result.error)
+            }
         }
 
         val numDimensions = if (header.thirdDimension != Polyline.ThirdDimension.None) 3 else 2
@@ -161,25 +197,29 @@ internal class PolylineDecoder(
             // Decode each dimension for the coordinate.
             for (dimension in 0 until numDimensions) {
                 if (index >= encoded.length) {
-                    throw DecodeException("Decoding ended before all the dimensions for a coordinate were decoded", Polyline.DecodeError.MissingCoordinateDimension)
+                    return DecompressResult.Error(Polyline.DecodeError.MissingCoordinateDimension)
                 }
 
-                val (decodedValue, nextIndex) = decodeSignedValue(encoded, index)
-                deltaValue = decodedValue
+                when (val result = decodeSignedValue(encoded, index)) {
+                    is DecodeValueResult.Success -> {
+                        deltaValue = result.value
+                        index = result.nextIndex
+                    }
+                    is DecodeValueResult.Error -> return DecompressResult.Error(result.error)
+                }
                 lastScaledCoordinate[dimension] += deltaValue
                 // Get the final lat/lng/z value by scaling the integer back down based on the number of
                 // digits of precision.
                 val value = lastScaledCoordinate[dimension].toDouble() / precisionDivisors[dimension]
                 if (abs(value) > maxAllowedValues[dimension]) {
-                    throw DecodeException("Latitude values need to be in [-90, 90] and longitude values need to be in [-180, 180]", Polyline.DecodeError.InvalidCoordinateValue)
+                    return DecompressResult.Error(Polyline.DecodeError.InvalidCoordinateValue)
                 }
                 coordinate[resultDimensionIndex[dimension]] = value
-                index = nextIndex
             }
             outputLngLatArray.add(coordinate)
         }
 
-        return Pair(outputLngLatArray.toTypedArray(), header)
+        return DecompressResult.Success(outputLngLatArray.toTypedArray(), header)
     }
 
 }

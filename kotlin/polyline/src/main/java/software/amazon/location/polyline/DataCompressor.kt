@@ -3,6 +3,8 @@
 
 package software.amazon.location.polyline
 
+import software.amazon.location.polyline.algorithm.PolylineDecoder
+import software.amazon.location.polyline.algorithm.PolylineEncoder
 import kotlin.math.abs
 
 // DataCompressor is an abstract base class that defines the interface for
@@ -20,25 +22,24 @@ import kotlin.math.abs
 // - compressLngLatArray(lngLatArray, compressionParameters) -> compressedData
 // - decompressLngLatArray(compressedData) -> [lngLatArray, compressionParameters]
 
-internal open class DataCompressor {
+internal abstract class DataCompressor {
+    sealed class DecompressGeoJsonResult {
+        data class Success(val geojson: String, val parameters: Polyline.CompressionParameters) : DecompressGeoJsonResult()
+        data class Error(val error: Polyline.DecodeError) : DecompressGeoJsonResult()
+    }
+
     // Encode an array of LngLat data into a string of compressed data.
     // The coordinates may optionally have a third dimension of data.
-    @Throws(Exception::class)
-    open fun compressLngLatArray(
+    abstract fun compressLngLatArray(
         lngLatArray: Array<DoubleArray>,
         parameters: Polyline.CompressionParameters
-    ): String {
-        return ""
-    }
+    ): PolylineEncoder.CompressResult
 
     // Decode a string of compressed data into an array of LngLat data.
     // The coordinates may optionally have a third dimension of data.
-    @Throws(Exception::class)
-    open fun decompressLngLatArray(
+    abstract fun decompressLngLatArray(
         compressedData: String
-    ): Pair<Array<DoubleArray>, Polyline.CompressionParameters> {
-        return Pair(arrayOf(doubleArrayOf()), Polyline.CompressionParameters())
-    }
+    ): PolylineDecoder.DecompressResult
 
     // Helper method to determine whether the polygon is wound in CCW (counterclockwise) or CW (clockwise) order.
     private fun polygonIsCounterClockwise(lngLatArray: Array<DoubleArray>): Boolean {
@@ -90,21 +91,24 @@ internal open class DataCompressor {
         return true
     }
 
-    @Throws(DecodeException::class)
-    private fun decodeLineString(compressedData: String): Pair<String, Polyline.CompressionParameters> {
-        val (decodedLine, compressionParameters) = try {
-            decompressLngLatArray(compressedData)
-        } catch (e: Exception) {
-            throw e
+    private fun decodeLineString(compressedData: String): DecompressGeoJsonResult {
+        val decodedLine : Array<DoubleArray>
+        val compressionParameters : Polyline.CompressionParameters
+        when (val result = decompressLngLatArray(compressedData)) {
+            is PolylineDecoder.DecompressResult.Success -> {
+                decodedLine = result.lngLatArray
+                compressionParameters = result.parameters
+            }
+            is PolylineDecoder.DecompressResult.Error -> return DecompressGeoJsonResult.Error(result.error)
         }
 
         // Validate that the result is a valid GeoJSON LineString per the RFC 7946 GeoJSON spec:
         // "The 'coordinates' member is an array of two or more positions"
         if (decodedLine.size < 2) {
-            throw DecodeException("LineString coordinate arrays need at least 2 entries (start, end)", Polyline.DecodeError.InvalidLineStringLength)
+            return DecompressGeoJsonResult.Error(Polyline.DecodeError.InvalidLineStringLength)
         }
 
-        return Pair(
+        return DecompressGeoJsonResult.Success(
             """
             {
                 "type": "LineString",
@@ -115,31 +119,35 @@ internal open class DataCompressor {
         )
     }
 
-    @Throws(DecodeException::class)
-    private fun decodePolygon(compressedData: Array<String>): Pair<String, Polyline.CompressionParameters> {
+    private fun decodePolygon(compressedData: Array<String>): DecompressGeoJsonResult {
         val decodedPolygon: MutableList<Array<DoubleArray>> = mutableListOf()
         var shouldBeCounterclockwise = true // The first ring of a polygon should be counterclockwise
         var compressionParameters = Polyline.CompressionParameters()
 
         for (ring in compressedData) {
-            val (decodedRing, ringCompressionParameters) = try {
-                decompressLngLatArray(ring)
-            } catch (e: Exception) {
-                throw e
+            val decodedRing: Array<DoubleArray>
+            val ringCompressionParameters : Polyline.CompressionParameters
+
+            when (val result = decompressLngLatArray(ring)) {
+                is PolylineDecoder.DecompressResult.Success -> {
+                    decodedRing = result.lngLatArray
+                    ringCompressionParameters = result.parameters
+                }
+                is PolylineDecoder.DecompressResult.Error -> return DecompressGeoJsonResult.Error(result.error)
             }
 
             // Validate that the result is a valid GeoJSON Polygon linear ring per the RFC 7946 GeoJSON spec.
 
             // 1. "A linear ring is a closed LineString with 4 or more positions."
             if (decodedRing.size < 4) {
-                throw DecodeException("Polygon coordinate arrays need at least 4 entries (v0, v1, v2, v0)", Polyline.DecodeError.InvalidPolygonLength)
+                return DecompressGeoJsonResult.Error(Polyline.DecodeError.InvalidPolygonLength)
             }
 
             // 2. "The first and last positions are equivalent, and they MUST contain identical values;
             //     their representation SHOULD also be identical."
             // We validate equivalency within a small epsilon.
             if (!positionsAreEquivalent(decodedRing[0], decodedRing[decodedRing.size - 1])) {
-                throw DecodeException("Polygons need the first and last coordinate to match", Polyline.DecodeError.InvalidPolygonClosure)
+                return DecompressGeoJsonResult.Error(Polyline.DecodeError.InvalidPolygonClosure)
             }
 
             // 3. "A linear ring MUST follow the right-hand rule with respect to the area it bounds,
@@ -177,7 +185,7 @@ internal open class DataCompressor {
             outerArray.contentDeepToString()
         }
 
-        return Pair(
+        return DecompressGeoJsonResult.Success(
             """
             {
                 "type": "Polygon",
@@ -225,68 +233,59 @@ internal open class DataCompressor {
         lngLatArray: Array<DoubleArray>,
         parameters: Polyline.CompressionParameters
     ): Polyline.EncodeResult {
-        return try {
-            Polyline.EncodeResult.Success(compressLngLatArray(lngLatArray, parameters))
-        } catch (e: EncodeException) {
-            Polyline.EncodeResult.Error(e.err)
+        return when (val result = compressLngLatArray(lngLatArray, parameters)) {
+            is PolylineEncoder.CompressResult.Success -> Polyline.EncodeResult.Success(result.encodedData)
+            is PolylineEncoder.CompressResult.Error -> Polyline.EncodeResult.Error(result.error)
         }
     }
 
     fun decodeToLngLatArray(compressedData: String): Polyline.DecodeToArrayResult {
-        val (decodedLngLatArray, _) = try {
-            decompressLngLatArray(compressedData)
-        } catch (e: DecodeException) {
-            return Polyline.DecodeToArrayResult.Error(e.err)
+        return when (val result = decompressLngLatArray(compressedData)) {
+            is PolylineDecoder.DecompressResult.Success -> Polyline.DecodeToArrayResult.Success(result.lngLatArray)
+            is PolylineDecoder.DecompressResult.Error -> Polyline.DecodeToArrayResult.Error(result.error)
         }
-        return Polyline.DecodeToArrayResult.Success(decodedLngLatArray)
     }
 
     fun decodeToLineString(compressedData: String): Polyline.DecodeToGeoJsonResult {
-        val (lineString, _) = try {
-            decodeLineString(compressedData)
-        } catch (e: DecodeException) {
-            return Polyline.DecodeToGeoJsonResult.Error(e.err)
+        return when (val result = decodeLineString(compressedData)) {
+            is DecompressGeoJsonResult.Success -> Polyline.DecodeToGeoJsonResult.Success(result.geojson)
+            is DecompressGeoJsonResult.Error -> Polyline.DecodeToGeoJsonResult.Error(result.error)
         }
-        return Polyline.DecodeToGeoJsonResult.Success(lineString)
     }
 
     fun decodeToPolygon(compressedData: Array<String>): Polyline.DecodeToGeoJsonResult {
-        val (polygon, _) = try {
-            decodePolygon(compressedData)
-        } catch (e: DecodeException) {
-            return Polyline.DecodeToGeoJsonResult.Error(e.err)
+        return when (val result = decodePolygon(compressedData)) {
+            is DecompressGeoJsonResult.Success -> Polyline.DecodeToGeoJsonResult.Success(result.geojson)
+            is DecompressGeoJsonResult.Error -> Polyline.DecodeToGeoJsonResult.Error(result.error)
         }
-        return Polyline.DecodeToGeoJsonResult.Success(polygon)
     }
 
     fun decodeToLineStringFeature(compressedData: String): Polyline.DecodeToGeoJsonResult {
-        val (lineString, compressionParameters) = try {
-            decodeLineString(compressedData)
-        } catch (e: DecodeException) {
-            return Polyline.DecodeToGeoJsonResult.Error(e.err)
-        }
-        return Polyline.DecodeToGeoJsonResult.Success("""
+        return when (val result = decodeLineString(compressedData)) {
+            is DecompressGeoJsonResult.Success -> Polyline.DecodeToGeoJsonResult.Success("""
         {
             "type": "Feature",
-            "geometry": $lineString,
-            "properties": ${compressionParametersToGeoJsonProperties(parameters = compressionParameters)}
+            "geometry": ${result.geojson},
+            "properties": ${compressionParametersToGeoJsonProperties(parameters = result.parameters)}
         }
         """)
+            is DecompressGeoJsonResult.Error -> Polyline.DecodeToGeoJsonResult.Error(result.error)
+        }
     }
 
     fun decodeToPolygonFeature(compressedData: Array<String>): Polyline.DecodeToGeoJsonResult {
-        val (polygon, compressionParameters) = try {
-            decodePolygon(compressedData)
-        } catch (e: DecodeException) {
-            return Polyline.DecodeToGeoJsonResult.Error(e.err)
-        }
-        return Polyline.DecodeToGeoJsonResult.Success("""
+        return when (val result = decodePolygon(compressedData)) {
+            is DecompressGeoJsonResult.Success -> Polyline.DecodeToGeoJsonResult.Success(
+                """
         {
             "type": "Feature",
-            "geometry": $polygon,
-            "properties": ${compressionParametersToGeoJsonProperties(parameters = compressionParameters)}
+            "geometry": ${result.geojson},
+            "properties": ${compressionParametersToGeoJsonProperties(parameters = result.parameters)}
         }
-        """)
-    }
+        """
+            )
 
+            is DecompressGeoJsonResult.Error -> Polyline.DecodeToGeoJsonResult.Error(result.error)
+        }
+    }
 }
