@@ -10,7 +10,7 @@ private var compressor: DataCompressor = FlexiblePolyline();
 /** Get the currently-selected compression algorithm.
  * @returns The current compression algorithm.
  */
-func getCompressionAlgorithm() -> CompressionAlgorithm {
+public func getCompressionAlgorithm() -> CompressionAlgorithm {
     if (compressor is Polyline5) {
         return CompressionAlgorithm.Polyline5;
     }
@@ -25,7 +25,7 @@ func getCompressionAlgorithm() -> CompressionAlgorithm {
  * @param compressionType The compression algorithm to use.
  * @throws Error() if an invalid compression algorithm is specified.
  */
-func setCompressionAlgorithm(_ compressionType: CompressionAlgorithm = .FlexiblePolyline) {
+public func setCompressionAlgorithm(_ compressionType: CompressionAlgorithm = .FlexiblePolyline) {
     switch (compressionType) {
         case CompressionAlgorithm.Polyline5:
             if (!(compressor is Polyline5)) {
@@ -61,7 +61,7 @@ func setCompressionAlgorithm(_ compressionType: CompressionAlgorithm = .Flexible
  * latitude values outside of [-90, 90], longitude values outside of [-180, 180],
  * data that isn't 2-dimensional or 3-dimensional, or data that is 3-dimensional with a compressor that doesn't support 3D data.
  */
-func encodeFromLngLatArray(
+public func encodeFromLngLatArray(
     lngLatArray: Array<Array<Double>>,
     parameters: CompressionParameters = CompressionParameters()
 ) throws -> String {
@@ -88,7 +88,7 @@ func encodeFromLngLatArray(
  *   ]
  * ```
  */
-func decodeToLngLatArray(
+public func decodeToLngLatArray(
     _ encodedData: String
 ) throws -> Array<Array<Double>> {
     return try compressor.decodeToLngLatArray(compressedData: encodedData);
@@ -117,7 +117,7 @@ func decodeToLngLatArray(
  * }
  * ```
  */
-func decodeToLineString(_ encodedData: String) throws -> String {
+public func decodeToLineString(_ encodedData: String) throws -> String {
     return try compressor.decodeToLineString(compressedData: encodedData);
 }
 
@@ -149,7 +149,7 @@ func decodeToLineString(_ encodedData: String) throws -> String {
  * }
  * ```
  */
-func decodeToPolygon(_ encodedData: Array<String>) throws -> String {
+public func decodeToPolygon(_ encodedData: Array<String>) throws -> String {
     return try compressor.decodeToPolygon(compressedData: encodedData);
 }
 
@@ -198,7 +198,7 @@ func decodeToPolygon(_ encodedData: Array<String>) throws -> String {
  * });
  * ```
  */
-func decodeToLineStringFeature(_ encodedData: String) throws -> String {
+public func decodeToLineStringFeature(_ encodedData: String) throws -> String {
     return try compressor.decodeToLineStringFeature(compressedData: encodedData);
 }
 
@@ -248,6 +248,6 @@ func decodeToLineStringFeature(_ encodedData: String) throws -> String {
  * });
  * ```
  */
-func decodeToPolygonFeature(_ encodedData: Array<String>) throws -> String {
+public func decodeToPolygonFeature(_ encodedData: Array<String>) throws -> String {
     return try compressor.decodeToPolygonFeature(compressedData: encodedData);
 }

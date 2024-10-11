@@ -1,127 +1,34 @@
-# @aws-geospatial/polyline
+# @aws/polyline
 
-This library is used to simplify the process of using compressed geometry with [maplibre-gl-js](https://github.com/maplibre/maplibre-gl-js) in JavaScript Applications.
+This library simplifies the process of using compressed geometry with [maplibre-gl-js](https://github.com/maplibre/maplibre-gl-js) in JavaScript applications 
+and with [maplibre-native](https://github.com/maplibre/maplibre-native) in Kotlin and Swift applications.
 
 Location-based service providers sometimes use variations of the [Encoded Polyline Algorithm Format](https://developers.google.com/maps/documentation/utilities/polylinealgorithm)
-to reduce the response size for APIs that return potentially large arrays of coordinates, such as routing and isoline APIs.
+to reduce the response size for APIs that can return large arrays of coordinates, such as routing and isoline APIs.
 The utility methods in this library compresses the data and decompresses into GeoJSON that can be directly rendered in MapLibre.
-
-## Installation
-
-Install this library from NPM for usage with modules:
-
-```console
-npm install @aws-geospatial/polyline
-```
-
-You can also import the Javascript file for usage directly in the browser.
-
-```html
-<script src="https://www.unpkg.com/@aws-geospatial/polyline/dist/polyline.js"></script>
-```
 
 ## Usage
 
-Import the library and call the utility functions in the top-level namespace as needed.
-You can find more details about these functions in the [Documentation](#documentation) section.
+Documentation for each supported language can be found here:
+* [JavaScript](./javascript/README.md)
+* [Kotlin](./kotlin/README.md)
+* [Swift](./swift/README.md)
 
-### Usage with Modules
+## Security
 
-```javascript
-import { decodeToLineStringFeature } from "@aws-geospatial/polyline";
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
 
-var decodedGeoJSON = decodeToLineStringFeature(response.EncodedPolyline);
-map.addLayer({
-  id: "route",
-  type: "line",
-  source: {
-    type: "geojson",
-    data: decodedGeoJSON,
-  },
-  layout: {
-    "line-join": "round",
-    "line-cap": "round",
-  },
-  paint: {
-    "line-color": "#3887be",
-    "line-width": 5,
-    "line-opacity": 0.75,
-  },
-});
-```
+## Getting Help
 
-### Usage with a browser
+The best way to interact with our team is through GitHub.
+You can [open an issue](https://github.com/aws-geospatial/polyline/issues/new/choose) and choose from one of our templates for
+[bug reports](https://github.com/aws-geospatial/polyline/issues/new?assignees=&labels=bug%2C+needs-triage&template=---bug-report.md&title=) or
+[feature requests](https://github.com/aws-geospatial/polyline/issues/new?assignees=&labels=feature-request&template=---feature-request.md&title=).
+If you have a support plan with [AWS Support](https://aws.amazon.com/premiumsupport/), you can also create a new support case.
 
-```html
-<!-- Import the Maplibre Polyline library -->
-<script src="https://www.unpkg.com/@aws-geospatial/polyline"></script>
-```
+## Contributing
 
-```javascript
-var decodedGeoJSON = polyline.decodeToLineStringFeature(
-  response.EncodedPolyline,
-);
-map.addLayer({
-  id: "route",
-  type: "line",
-  source: {
-    type: "geojson",
-    data: decodedGeoJSON,
-  },
-  layout: {
-    "line-join": "round",
-    "line-cap": "round",
-  },
-  paint: {
-    "line-color": "#3887be",
-    "line-width": 5,
-    "line-opacity": 0.75,
-  },
-});
-```
-
-## Documentation
-
-Detailed documentation can be found under `/docs/index.html` after generating it by running:
-
-```console
-npm run typedoc
-```
-
-### encodeFromLngLatArray
-
-This encodes an array of coordinates in longitude, latitude order into compressed polyline data.
-While this isn't needed for MapLibre rendering, you might need it to compress data for a request
-to a Location Service Provider when requesting route-related data.
-
-### decodeToLineStringFeature
-
-This is the most common method to use. It decodes compressed polyline data into a GeoJSON
-Feature containing a LineString that can directly be used as a MapLibre source for rendering.
-
-### decodeToPolygonFeature
-
-Similar to `decodeToLineStringFeature` it decodes an array of compressed polyline rings into a GeoJSON
-Feature containing a Polygon that can directly be used as a MapLibre source for rendering.
-This should be used when the compressed data is meant to represent polygon rings, as it will
-also generate the correct winding order of the rings for use with GeoJSON.
-
-### decodeToLineString
-
-This decodes a compressed polyline into a GeoJSON LineString. This can't directly be used
-as a MapLibre source for rendering, but it is useful when trying to work directly with LineString
-data.
-
-### decodeToPolygon
-
-This decodes an array of compressed polyline rings into a GeoJSON Polygon. This can't directly be used
-as a MapLibre source for rendering, but it is useful when trying to work directly with Polygon
-data.
-
-### decodeToLngLatArray
-
-This decodes compressed polyline data into an array of coordinates in longitude, latitude order.
-This method is helpful when you need to directly work with the coordinate data.
+We welcome community contributions and pull requests. See [CONTRIBUTING.md](https://github.com/aws-geospatial/amazon-location-mobile-auth-sdk-android/blob/master/CONTRIBUTING.md) for information on how to set up a development environment and submit code.
 
 ## License
 

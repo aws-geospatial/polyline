@@ -102,7 +102,7 @@ class DataCompressor {
             """
             {
             "type": "LineString",
-            "coordinates": \(decodedLine),
+            "coordinates": \(decodedLine)
             }
             """,
             compressionParameters
@@ -169,7 +169,7 @@ class DataCompressor {
             """
             {
             "type": "Polygon",
-            "coordinates": \(decodedPolygon),
+            "coordinates": \(decodedPolygon)
             }
             """,
             compressionParameters
@@ -185,7 +185,7 @@ class DataCompressor {
             {
             "precision": \(parameters.precisionLngLat),
             "thirdDimensionPrecision": \(parameters.precisionThirdDimension),
-            "thirdDimensionType": "level",
+            "thirdDimensionType": "level"
             }
             """;
         case ThirdDimension.Elevation:
@@ -193,7 +193,7 @@ class DataCompressor {
             {
             "precision": \(parameters.precisionLngLat),
             "thirdDimensionPrecision": \(parameters.precisionThirdDimension),
-            "thirdDimensionType": "elevation",
+            "thirdDimensionType": "elevation"
             }
             """;
         case ThirdDimension.Altitude:
@@ -201,7 +201,7 @@ class DataCompressor {
             {
             "precision": \(parameters.precisionLngLat),
             "thirdDimensionPrecision": \(parameters.precisionThirdDimension),
-            "thirdDimensionType": "altitude",
+            "thirdDimensionType": "altitude"
             }
             """;
         default:
@@ -242,7 +242,7 @@ class DataCompressor {
         {
         "type": "Feature",
         "geometry": \(lineString),
-        "properties": \(self.compressionParametersToGeoJsonProperties(parameters: compressionParameters)),
+        "properties": \(self.compressionParametersToGeoJsonProperties(parameters: compressionParameters))
         }
         """;
     }
@@ -253,7 +253,7 @@ class DataCompressor {
         {
         "type": "Feature",
         "geometry": \(polygon),
-        "properties": \(self.compressionParametersToGeoJsonProperties(parameters: compressionParameters)),
+        "properties": \(self.compressionParametersToGeoJsonProperties(parameters: compressionParameters))
         }
         """;
     }

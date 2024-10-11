@@ -4,13 +4,13 @@
 import Foundation
 
 /** Defines the default encoding precision for coordinates */
-let DefaultPrecision = 6;
+public let DefaultPrecision = 6;
 
 /** The version of flexible-polyline that's supported by this implementation */
 let FlexiblePolylineFormatVersion = 1;
 
 /** Defines the set of compression algorithms that are supported by this library. */
-enum CompressionAlgorithm {
+public enum CompressionAlgorithm {
     /** Encoder/decoder for the [Flexible Polyline](https://github.com/heremaps/flexible-polyline) format. */
     case FlexiblePolyline
     /** Encoder/decoder for the [Encoded Polyline Algorithm Format](https://developers.google.com/maps/documentation/utilities/polylinealgorithm)
@@ -24,7 +24,7 @@ enum CompressionAlgorithm {
 }
 
 /** Defines how to interpret a third dimension value if it exists. */
-enum ThirdDimension:Int {
+public enum ThirdDimension:Int {
     /** No third dimension specified */
     case None = 0
     /** Third dimension is level */
@@ -40,18 +40,18 @@ enum ThirdDimension:Int {
  * algorithms ignore them, as they don't support 3D data and we've defined them to use
  * a fixed precision value.
  */
-struct CompressionParameters {
+public struct CompressionParameters {
     /** The number of decimal places of precision to use for compressing longitude and latitude.
     */
-    let precisionLngLat: Int;
+    public let precisionLngLat: Int;
     /** The number of decimal places of precision to use for compressing the third dimension of data.
     */
-    let precisionThirdDimension: Int;
+    public let precisionThirdDimension: Int;
     /** The type of third dimension data being encoded - none, level, altitude, or elevation.
     */
-    let thirdDimension: ThirdDimension;
+    public let thirdDimension: ThirdDimension;
     
-    init(precisionLngLat: Int = DefaultPrecision, precisionThirdDimension: Int = 0, thirdDimension: ThirdDimension = ThirdDimension.None) {
+    public init(precisionLngLat: Int = DefaultPrecision, precisionThirdDimension: Int = 0, thirdDimension: ThirdDimension = ThirdDimension.None) {
         self.precisionLngLat = precisionLngLat;
         self.precisionThirdDimension = precisionThirdDimension;
         self.thirdDimension = thirdDimension;
@@ -59,7 +59,7 @@ struct CompressionParameters {
 };
 
 
-enum DecodeError: Error {
+public enum DecodeError: Error {
     // Empty input string is considered an error.
     case emptyInput
     // Invalid input, the encoded character doesn't exist in the decoding table.
@@ -75,7 +75,7 @@ enum DecodeError: Error {
 };
 
 
-enum EncodeError: Error {
+public enum EncodeError: Error {
     // Invalid precision value, the valid range is 0 - 11.
     case invalidPrecisionValue
     // All the coordinates need to have the same number of dimensions.
@@ -85,7 +85,7 @@ enum EncodeError: Error {
 };
 
 
-enum GeoJsonError: Error {
+public enum GeoJsonError: Error {
     // LineString coordinate arrays need at least 2 entries (start, end)
     case invalidLineStringLength
     // Polygon coordinate arrays need at least 4 entries (v0, v1, v2, v0)
