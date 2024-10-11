@@ -17,7 +17,7 @@ npm install @aws/polyline
 You can also import the Javascript file for usage directly in the browser.
 
 ```html
-<script src="https://www.unpkg.com/@aws/polyline/dist/polyline.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@aws/polyline/dist/polyline.min.js"></script>
 ```
 
 ## Usage
@@ -54,7 +54,7 @@ map.addLayer({
 
 ```html
 <!-- Import the Polyline library -->
-<script src="https://www.unpkg.com/@aws/polyline"></script>
+<script src="https://cdn.jsdelivr.net/npm/@aws/polyline/dist/polyline.min.js"></script>
 ```
 
 ```javascript
@@ -182,7 +182,7 @@ If you have a support plan with [AWS Support](https://aws.amazon.com/premiumsupp
 
 ## Contributing
 
-We welcome community contributions and pull requests. See [CONTRIBUTING.md](https://github.com/aws-geospatial/amazon-location-mobile-auth-sdk-android/blob/master/CONTRIBUTING.md) for information on how to set up a development environment and submit code.
+We welcome community contributions and pull requests. See [CONTRIBUTING](CONTRIBUTING.md) for information on how to set up a development environment and submit code.
 
 ## License
 

@@ -28,7 +28,7 @@ If you have a support plan with [AWS Support](https://aws.amazon.com/premiumsupp
 
 ## Contributing
 
-We welcome community contributions and pull requests. See [CONTRIBUTING.md](https://github.com/aws-geospatial/amazon-location-mobile-auth-sdk-android/blob/master/CONTRIBUTING.md) for information on how to set up a development environment and submit code.
+We welcome community contributions and pull requests. See [CONTRIBUTING](CONTRIBUTING.md) for information on how to set up a development environment and submit code.
 
 ## License
 
