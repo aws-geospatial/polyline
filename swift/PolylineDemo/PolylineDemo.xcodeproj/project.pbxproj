@@ -3,15 +3,16 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 56;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6817D5942CB9D76F00078BB3 /* Polyline in Frameworks */ = {isa = PBXBuildFile; productRef = 6817D5932CB9D76F00078BB3 /* Polyline */; };
+		6817D5972CB9D79B00078BB3 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 6817D5962CB9D79B00078BB3 /* MapLibre */; };
 		685E1E472CAEF07000F2C626 /* PolylineDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685E1E462CAEF07000F2C626 /* PolylineDemoApp.swift */; };
 		685E1E492CAEF07000F2C626 /* SimpleMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685E1E482CAEF07000F2C626 /* SimpleMap.swift */; };
 		685E1E4B2CAEF07100F2C626 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 685E1E4A2CAEF07100F2C626 /* Assets.xcassets */; };
 		685E1E4E2CAEF07100F2C626 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 685E1E4D2CAEF07100F2C626 /* Preview Assets.xcassets */; };
-		685E1E562CAEF43000F2C626 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 685E1E552CAEF43000F2C626 /* MapLibre */; };
 		68AE0BB32CB894B600AF75CF /* Polyline in Frameworks */ = {isa = PBXBuildFile; productRef = 68AE0BB22CB894B600AF75CF /* Polyline */; };
 		68AE0BB62CB968FE00AF75CF /* Polyline in Frameworks */ = {isa = PBXBuildFile; productRef = 68AE0BB52CB968FE00AF75CF /* Polyline */; };
 		68AE0BB92CB9695100AF75CF /* Polyline in Frameworks */ = {isa = PBXBuildFile; productRef = 68AE0BB82CB9695100AF75CF /* Polyline */; };
@@ -31,9 +32,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				68AE0BB92CB9695100AF75CF /* Polyline in Frameworks */,
+				6817D5972CB9D79B00078BB3 /* MapLibre in Frameworks */,
 				68AE0BB32CB894B600AF75CF /* Polyline in Frameworks */,
-				685E1E562CAEF43000F2C626 /* MapLibre in Frameworks */,
 				68AE0BB62CB968FE00AF75CF /* Polyline in Frameworks */,
+				6817D5942CB9D76F00078BB3 /* Polyline in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,10 +94,11 @@
 			);
 			name = PolylineDemo;
 			packageProductDependencies = (
-				685E1E552CAEF43000F2C626 /* MapLibre */,
 				68AE0BB22CB894B600AF75CF /* Polyline */,
 				68AE0BB52CB968FE00AF75CF /* Polyline */,
 				68AE0BB82CB9695100AF75CF /* Polyline */,
+				6817D5932CB9D76F00078BB3 /* Polyline */,
+				6817D5962CB9D79B00078BB3 /* MapLibre */,
 			);
 			productName = PolylineDemo;
 			productReference = 685E1E432CAEF07000F2C626 /* PolylineDemo.app */;
@@ -126,8 +129,8 @@
 			);
 			mainGroup = 685E1E3A2CAEF07000F2C626;
 			packageReferences = (
-				685E1E542CAEF43000F2C626 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
-				68AE0BB72CB9695100AF75CF /* XCLocalSwiftPackageReference "../../../../../polyline" */,
+				6817D5922CB9D76E00078BB3 /* XCRemoteSwiftPackageReference "polyline" */,
+				6817D5952CB9D79B00078BB3 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
 			);
 			productRefGroup = 685E1E442CAEF07000F2C626 /* Products */;
 			projectDirPath = "";
@@ -363,28 +366,34 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		68AE0BB72CB9695100AF75CF /* XCLocalSwiftPackageReference "../../../../../polyline" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../../../../polyline;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
-		685E1E542CAEF43000F2C626 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
+		6817D5922CB9D76E00078BB3 /* XCRemoteSwiftPackageReference "polyline" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/aws-geospatial/polyline";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.0;
+			};
+		};
+		6817D5952CB9D79B00078BB3 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 6.7.0;
+				minimumVersion = 6.7.1;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		685E1E552CAEF43000F2C626 /* MapLibre */ = {
+		6817D5932CB9D76F00078BB3 /* Polyline */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 685E1E542CAEF43000F2C626 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
+			package = 6817D5922CB9D76E00078BB3 /* XCRemoteSwiftPackageReference "polyline" */;
+			productName = Polyline;
+		};
+		6817D5962CB9D79B00078BB3 /* MapLibre */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6817D5952CB9D79B00078BB3 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
 			productName = MapLibre;
 		};
 		68AE0BB22CB894B600AF75CF /* Polyline */ = {
