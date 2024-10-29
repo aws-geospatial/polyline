@@ -9,7 +9,7 @@ plugins {
 publishing {
     repositories {
         maven {
-            name = "Polyline"
+            name = "polyline"
             url = uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/")
             credentials(PasswordCredentials::class)
         }
