@@ -42,10 +42,10 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
-    implementation(project(":polyline"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    implementation("org.maplibre.gl:android-sdk:11.3.0")
+    implementation("org.maplibre.gl:android-sdk:11.5.2")
+    implementation("software.amazon.location:polyline:0.1.0")
 }
