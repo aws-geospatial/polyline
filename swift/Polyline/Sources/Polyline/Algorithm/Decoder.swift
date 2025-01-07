@@ -22,7 +22,7 @@ class PolylineDecoder {
     // The decoded value will be an integer that still needs the decimal place moved over based
     // on the number of digits of encoded precision.
     private func decodeSignedValue(
-        encoded: String,
+        encoded: [UInt8],
         startIndex: Int
     ) throws -> (result: Int64, nextIndex: Int) {
         // decode an unsigned value
@@ -47,7 +47,7 @@ class PolylineDecoder {
     // the header bytes, since those are encoded without the sign bit as the header
     // values are known to be unsigned (which saves 2 bits).
     private func decodeUnsignedValue(
-        encoded: String,
+        encoded: [UInt8],
         startIndex: Int
     ) throws -> (result: Int64, nextIndex: Int) {
         var result:Int64 = 0;
@@ -59,8 +59,8 @@ class PolylineDecoder {
         // 5-bit chunk to the bottom, and keep going for as long as the 6th bit
         // is set.
         while (index < encoded.count) {
-            let charCode = Int(encoded.unicodeScalars[encoded.index(encoded.startIndex, offsetBy: index)].value);
-            let value = self.decodingTable[charCode];
+            let charCode = encoded[index];
+            let value = self.decodingTable[Int(charCode)];
             if (value < 0) {
                 throw DecodeError.invalidEncodedCharacter;
             }
@@ -82,7 +82,7 @@ class PolylineDecoder {
     }
     
     private func decodeHeader(
-        encoded: String
+        encoded: [UInt8]
     ) throws -> (header: CompressionParameters, index: Int) {
         // If the data has a header, the first value is expected to be the header version
         // and the second value is compressed metadata containing precision and dimension information.
@@ -118,12 +118,16 @@ class PolylineDecoder {
             precisionThirdDimension: 0,
             thirdDimension: ThirdDimension.None
         );
-        
+
+        // Convert the string to an array of uint8 values (via UTF8) so that we
+        // can easily iterate and index through the characters.
+        let encodedUtf8Array: [UInt8] = Array(encoded.utf8)
+
         // Track the index of the next character to decode from the encoded string.
         var index = 0;
         
         if (self.containsHeader) {
-            (header, index) = try self.decodeHeader(encoded: encoded);
+            (header, index) = try self.decodeHeader(encoded: encodedUtf8Array);
         }
         
         let numDimensions = (header.thirdDimension != ThirdDimension.None) ? 3 : 2;
@@ -150,18 +154,18 @@ class PolylineDecoder {
         var lastScaledCoordinate:[Int64] = [0, 0, 0];
         
         // Keep decoding until we reach the end of the string.
-        while (index < encoded.count) {
+        while (index < encodedUtf8Array.count) {
             // Each time through the loop we'll decode one full coordinate.
             var coordinate: [Double] = (numDimensions == 2) ? [0.0, 0.0] : [0.0, 0.0, 0.0];
             var deltaValue:Int64 = 0;
             
             // Decode each dimension for the coordinate.
             for dimension in 0...(numDimensions - 1) {
-                if (index >= encoded.count) {
+                if (index >= encodedUtf8Array.count) {
                     throw DecodeError.missingCoordinateDimension;
                 }
                 
-                (deltaValue, index) = try self.decodeSignedValue(encoded: encoded, startIndex: index);
+                (deltaValue, index) = try self.decodeSignedValue(encoded: encodedUtf8Array, startIndex: index);
                 lastScaledCoordinate[dimension] += deltaValue;
                 // Get the final lat/lng/z value by scaling the integer back down based on the number of
                 // digits of precision.
