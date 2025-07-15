@@ -1,7 +1,7 @@
 {
   "name": "@aws/polyline",
   "description": "A library for encoding and decoding polylines",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "keywords": [],
   "author": {
     "name": "Amazon Web Services",
