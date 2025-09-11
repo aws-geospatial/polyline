@@ -1,0 +1,18 @@
+name: Release Package
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+      packages: write
+    uses: aws-geospatial/github-workflows-for-amazon-location/.github/workflows/node-release.yml@main
+    with:
+      node-version: "18.x"
+      working-directory: "javascript"
+    secrets:
+      NPM_ORG_TOKEN: ${{ secrets.NPM_ORG_TOKEN }}
