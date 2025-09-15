@@ -1,6 +1,8 @@
 # 0.1.3
 
-- Added additional workflow for automating github and node release
+### ✨ Features and improvements
+
+- Several dependency updates
 
 # 0.1.2
 
