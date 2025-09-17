@@ -16,10 +16,10 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "Polyline",
-            path: "Polyline/Sources/Polyline"),
+            path: "swift/Polyline/Sources/Polyline"),
         .testTarget(
             name: "PolylineTests",
             dependencies: ["Polyline"],
-            path: "Polyline/Tests/PolylineTests"),
+            path: "swift/Polyline/Tests/PolylineTests"),
     ]
 )
