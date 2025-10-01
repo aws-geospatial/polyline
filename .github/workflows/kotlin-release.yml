@@ -6,9 +6,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  release-kotlin:
     permissions:
       contents: write
+      actions: write
+      packages: write
     uses: aws-geospatial/github-workflows-for-amazon-location/.github/workflows/kotlin-release.yml@main
     with:
       working-directory: "kotlin"

@@ -1,4 +1,4 @@
-name: Release Package
+name: Release Package - Node
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  release-node:
     permissions:
       contents: write
       packages: write

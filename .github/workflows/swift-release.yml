@@ -1,4 +1,4 @@
-name: Release Package
+name: Release Package - Swift
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  release-swift:
     permissions:
       contents: write
     uses: aws-geospatial/github-workflows-for-amazon-location/.github/workflows/swift-release.yml@main
