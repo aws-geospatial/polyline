@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PolylineDemo"
 include(":app")
-include(":polyline")
+include(":library")
