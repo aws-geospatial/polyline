@@ -3,12 +3,12 @@ import com.vanniktech.maven.publish.SonatypeHost
 plugins {
     id("java-library")
     alias(libs.plugins.jetbrainsKotlinJvm)
-    id("com.vanniktech.maven.publish") version "0.27.0"
+    id("com.vanniktech.maven.publish") version "0.28.0"
 }
 
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.S01, automaticRelease = true)
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
     signAllPublications()
 
     coordinates("software.amazon.location", "polyline", "0.1.1")
