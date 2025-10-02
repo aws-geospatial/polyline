@@ -6,15 +6,6 @@ plugins {
     id("com.vanniktech.maven.publish") version "0.27.0"
 }
 
-// publishing {
-//     repositories {
-//         maven {
-//             name = "polyline"
-//             url = uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/")
-//             credentials(PasswordCredentials::class)
-//         }
-//     }
-// }
 
 mavenPublishing {
     publishToMavenCentral(SonatypeHost.S01, automaticRelease = true)
