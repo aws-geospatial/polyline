@@ -1,3 +1,9 @@
+# 0.1.4
+
+### ✨ Features and improvements
+
+- Several dependency updates
+
 # 0.1.3
 
 ### ✨ Features and improvements
