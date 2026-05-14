@@ -1,4 +1,4 @@
-name: Auto Security Release
+name: Auto Security Release (JavaScript)
 permissions:
   contents: write
   pull-requests: write
@@ -18,6 +18,8 @@ jobs:
       pull-requests: write
     uses: aws-geospatial/github-workflows-for-amazon-location/.github/workflows/auto-security-release.yml@main
     with:
+      working-directory: javascript
+      tag-prefix: "js-v"
       force: ${{ inputs.force || false }}
     secrets:
       APP_ID: ${{ secrets.AUTO_RELEASE_BOT_APP_ID }}
