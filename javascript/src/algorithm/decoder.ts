@@ -16,6 +16,8 @@ import {
   ThirdDimension,
 } from "../polyline-types";
 
+const MaxEncodedValueChunks = 11;
+
 export class PolylineDecoder {
   // decodingTable is a lookup table that converts ASCII values from 0x00-0x7F
   // to the appropriate decoded 0x00-0x3F value. Polyline and Flexible-Polyline
@@ -38,20 +40,64 @@ export class PolylineDecoder {
     encoded: string,
     startIndex: number,
   ): [result: number, nextIndex: number] {
-    // decode an unsigned value
-    const [unsignedValue, nextIndex] = this.decodeUnsignedValue(
-      encoded,
-      startIndex,
-    );
-    // If the unsigned value has a 1 encoded in its least significant bit,
-    // it's negative, so flip the bits.
-    let signedValue = unsignedValue;
-    if (unsignedValue & 1) {
-      signedValue = ~signedValue;
+    let magnitude = 0;
+    let multiplier = 0x10;
+    let isNegative = false;
+    let index = startIndex;
+    let chunkCount = 0;
+
+    // Decode the sign and first four magnitude bits from the first chunk,
+    // then accumulate five magnitude bits from each remaining chunk. This is
+    // equivalent to zig-zag decoding without materializing its potentially
+    // unsafe doubled integer.
+    while (index < encoded.length) {
+      const charCode = encoded.charCodeAt(index);
+      const value = this.decodingTable[charCode];
+      if (value === undefined || value < 0) {
+        throw Error(
+          `Invalid input. Encoded character '${charCode}' doesn't exist in the decoding table.`,
+        );
+      }
+
+      const chunkValue = value % 0x20;
+      if (chunkCount === 0) {
+        isNegative = chunkValue % 2 === 1;
+        magnitude = Math.floor(chunkValue / 2);
+      } else {
+        const nextMagnitude = magnitude + chunkValue * multiplier;
+        if (!Number.isSafeInteger(nextMagnitude)) {
+          throw Error(
+            "Invalid encoding - decoded coordinate delta exceeds the supported safe integer range.",
+          );
+        }
+        magnitude = nextMagnitude;
+      }
+
+      index++;
+      chunkCount++;
+
+      if (value < 0x20) {
+        const signedValue = isNegative ? -magnitude - 1 : magnitude;
+        if (!Number.isSafeInteger(signedValue)) {
+          throw Error(
+            "Invalid encoding - decoded coordinate delta exceeds the supported safe integer range.",
+          );
+        }
+        return [signedValue, index];
+      }
+      if (chunkCount === MaxEncodedValueChunks) {
+        throw Error(
+          "Invalid encoding - encoded value contains too many 5-bit chunks.",
+        );
+      }
+      if (chunkCount > 1) {
+        multiplier *= 0x20;
+      }
     }
-    // Shift the result by one to remove the encoded sign bit.
-    signedValue >>= 1;
-    return [signedValue, nextIndex];
+
+    throw Error(
+      "Invalid encoding - last block contained an extra 0x20 'continue' bit.",
+    );
   }
 
   // Given an encoded string and a starting index, this decodes a single encoded
@@ -63,8 +109,9 @@ export class PolylineDecoder {
     startIndex: number,
   ): [result: number, nextIndex: number] {
     let result = 0;
-    let shift = 0;
+    let multiplier = 1;
     let index = startIndex;
+    let chunkCount = 0;
 
     // For each ASCII character, get the 6-bit (0x00 - 0x3F) value that
     // it represents. Shift the accumulated result by 5 bits, add the new
@@ -73,21 +120,33 @@ export class PolylineDecoder {
     while (index < encoded.length) {
       const charCode = encoded.charCodeAt(index);
       const value = this.decodingTable[charCode];
-      if (value < 0) {
+      if (value === undefined || value < 0) {
         throw Error(
           `Invalid input. Encoded character '${charCode}' doesn't exist in the decoding table.`,
         );
       }
-      result |= (value & 0x1f) << shift;
-      shift += 5;
+      const nextResult = result + (value % 0x20) * multiplier;
+      if (!Number.isSafeInteger(nextResult)) {
+        throw Error(
+          "Invalid encoding - decoded value exceeds the supported safe integer range.",
+        );
+      }
+      result = nextResult;
       index++;
+      chunkCount++;
 
       // We've reached the final 5-bit chunk for this value, so return.
       // We also return the index, which represents the starting index of the
       // next value to decode.
-      if ((value & 0x20) === 0) {
+      if (value < 0x20) {
         return [result, index];
       }
+      if (chunkCount === MaxEncodedValueChunks) {
+        throw Error(
+          "Invalid encoding - encoded value contains too many 5-bit chunks.",
+        );
+      }
+      multiplier *= 0x20;
     }
 
     // If we've run out of encoded characters without finding an empty 6th bit,
@@ -112,9 +171,9 @@ export class PolylineDecoder {
     );
     return [
       {
-        precisionLngLat: metadata & 0x0f,
-        thirdDimension: (metadata >> 4) & 0x07,
-        precisionThirdDimension: (metadata >> 7) & 0x0f,
+        precisionLngLat: metadata % 0x10,
+        thirdDimension: Math.floor(metadata / 0x10) % 0x08,
+        precisionThirdDimension: Math.floor(metadata / 0x80) % 0x10,
       },
       nextIndex,
     ];
@@ -174,7 +233,13 @@ export class PolylineDecoder {
         }
 
         [deltaValue, index] = this.decodeSignedValue(encoded, index);
-        lastScaledCoordinate[dimension] += deltaValue;
+        const scaledCoordinate = lastScaledCoordinate[dimension] + deltaValue;
+        if (!Number.isSafeInteger(scaledCoordinate)) {
+          throw Error(
+            "Invalid encoding - decoded coordinate exceeds the supported safe integer range.",
+          );
+        }
+        lastScaledCoordinate[dimension] = scaledCoordinate;
         // Get the final lat/lng/z value by scaling the integer back down based on the number of
         // digits of precision.
         const value =
