@@ -630,6 +630,168 @@ describe("Decoding 3D data with FlexiblePolyline produces the expected results",
   );
 });
 
+describe("FlexiblePolyline handles values beyond the 32-bit integer range", () => {
+  beforeEach(() => {
+    polyline.setCompressionAlgorithm(
+      polyline.CompressionAlgorithm.FlexiblePolyline,
+    );
+  });
+
+  it.each([
+    {
+      name: "Denver altitudes",
+      coords: [
+        [-104.9903, 39.7392, 1609],
+        [-111.891, 40.7608, 1288],
+      ],
+      expectedEncoding: "BmZg0v5rC3ljooGgky98_Cgqr-B39llN_jpokT",
+    },
+    {
+      name: "Mexico City altitudes",
+      coords: [
+        [-99.1332, 19.4326, 2240],
+        [-99.14, 19.44, 2250],
+      ],
+      expectedEncoding: "BmZwpiilB_wzi9Fgg4uwlEwuO_oNgoriT",
+    },
+  ])(
+    "encodes and decodes $name",
+    ({
+      coords,
+      expectedEncoding,
+    }: {
+      coords: number[][];
+      expectedEncoding: string;
+    }) => {
+      const encodedLine = polyline.encodeFromLngLatArray(coords, {
+        thirdDimension: polyline.ThirdDimension.Altitude,
+      });
+      expect(encodedLine).toEqual(expectedEncoding);
+      expect(polyline.decodeToLngLatArray(expectedEncoding)).toEqual(coords);
+    },
+  );
+
+  it("decodes and round-trips 2D coordinates at precision 7", () => {
+    const coords = [
+      [120, 10],
+      [120.1, 10.1],
+    ];
+    const referenceEncoding = "BHgww3-Fggm6wnCgkh9Bgkh9B";
+
+    expect(polyline.decodeToLngLatArray(referenceEncoding)).toEqual(coords);
+
+    const encodedLine = polyline.encodeFromLngLatArray(coords, {
+      precisionLngLat: 7,
+    });
+    expect(encodedLine).toEqual("BnYgww3-Fggm6wnCgkh9Bgkh9B");
+    expect(polyline.decodeToLngLatArray(encodedLine)).toEqual(coords);
+  });
+
+  it("round-trips coordinates at the maximum supported precision", () => {
+    const coords = [
+      [-180, -90],
+      [180, 90],
+      [-180, -90],
+    ];
+    const encodedLine = polyline.encodeFromLngLatArray(coords, {
+      precisionLngLat: 11,
+    });
+
+    expect(encodedLine).toEqual(
+      "BrY__n2557rQ__vszz33gBggwszz33gBggg5mnvvhC__vszz33gB___4mnvvhC",
+    );
+    expect(polyline.decodeToLngLatArray(encodedLine)).toEqual(coords);
+  });
+
+  it("round-trips third-dimension values at the safe integer boundaries", () => {
+    const coords = [
+      [0, 0, Number.MIN_SAFE_INTEGER],
+      [0, 0, 0],
+      [0, 0, Number.MAX_SAFE_INTEGER],
+    ];
+    const expectedEncoding = "BgBAA9_________PAA-_________PAA-_________P";
+    const encodedLine = polyline.encodeFromLngLatArray(coords, {
+      precisionLngLat: 0,
+      precisionThirdDimension: 0,
+      thirdDimension: polyline.ThirdDimension.Altitude,
+    });
+
+    expect(encodedLine).toEqual(expectedEncoding);
+    expect(polyline.decodeToLngLatArray(expectedEncoding)).toEqual(coords);
+  });
+
+  it("rejects an encoded coordinate delta outside the safe integer range", () => {
+    const coords = [
+      [0, 0, Number.MIN_SAFE_INTEGER],
+      [0, 0, Number.MAX_SAFE_INTEGER],
+    ];
+
+    expect(() =>
+      polyline.encodeFromLngLatArray(coords, {
+        precisionLngLat: 0,
+        precisionThirdDimension: 0,
+        thirdDimension: polyline.ThirdDimension.Altitude,
+      }),
+    ).toThrow(
+      "Scaled coordinate delta exceeds the supported safe integer range",
+    );
+  });
+
+  it("rejects a decoded coordinate delta outside the safe integer range", () => {
+    expect(() =>
+      polyline.decodeToLngLatArray("BgBAA9_________PAA8_________f"),
+    ).toThrow(
+      "decoded coordinate delta exceeds the supported safe integer range",
+    );
+  });
+
+  it("rejects decoded coordinates outside the safe integer range", () => {
+    // Each coordinate contains an altitude delta of 2^52 - 1. The third
+    // accumulated altitude cannot be represented as a safe JavaScript integer.
+    const encodedCoordinate = "AA-_________H";
+    const encodedLine = `BgB${encodedCoordinate.repeat(3)}`;
+
+    expect(() => polyline.decodeToLngLatArray(encodedLine)).toThrow(
+      "decoded coordinate exceeds the supported safe integer range",
+    );
+  });
+
+  it.each(["BgBAAggggggggggQ", "BgBAA__________P"])(
+    "rejects a decoded coordinate delta just outside the safe integer range",
+    (encodedLine) => {
+      expect(() => polyline.decodeToLngLatArray(encodedLine)).toThrow(
+        "decoded coordinate delta exceeds the supported safe integer range",
+      );
+    },
+  );
+
+  it("rejects encoded values containing more than 11 chunks", () => {
+    const encodedLine = `BgBAA${"g".repeat(11)}A`;
+
+    expect(() => polyline.decodeToLngLatArray(encodedLine)).toThrow(
+      "encoded value contains too many 5-bit chunks",
+    );
+  });
+
+  it("rejects coordinates that scale outside the safe integer range", () => {
+    const coords = [
+      [0, 0, 4_000_000_000_000_000],
+      [0, 0, 8_000_000_000_000_000],
+      [0, 0, Number.MAX_SAFE_INTEGER + 1],
+    ];
+
+    expect(() =>
+      polyline.encodeFromLngLatArray(coords, {
+        precisionLngLat: 0,
+        precisionThirdDimension: 0,
+        thirdDimension: polyline.ThirdDimension.Altitude,
+      }),
+    ).toThrow(
+      "Scaled coordinate value exceeds the supported safe integer range",
+    );
+  });
+});
+
 // Verify that the other algorithms throw errors with 3D data.
 describe.each([
   ["Polyline5", polyline.CompressionAlgorithm.Polyline5],

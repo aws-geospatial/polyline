@@ -38,7 +38,7 @@ export class PolylineEncoder {
   // language. Our generalized implementation will use the "round to nearest, ties away from 0"
   // rule for all languages to keep the encoding deterministic across implementations.
   private polylineRound(value: number): number {
-    return Math.sign(value) * Math.floor(Math.abs(value) + 0.5);
+    return value < 0 ? -Math.round(-value) : Math.round(value);
   }
 
   encode(
@@ -117,9 +117,18 @@ export class PolylineEncoder {
         const scaledValue = this.polylineRound(
           inputValue * precisionMultipliers[dimension],
         );
-        output += this.encodeSignedValue(
-          scaledValue - lastScaledCoordinate[dimension],
-        );
+        if (!Number.isSafeInteger(scaledValue)) {
+          throw Error(
+            "Invalid input. Scaled coordinate value exceeds the supported safe integer range.",
+          );
+        }
+        const deltaValue = scaledValue - lastScaledCoordinate[dimension];
+        if (!Number.isSafeInteger(deltaValue)) {
+          throw Error(
+            "Invalid input. Scaled coordinate delta exceeds the supported safe integer range.",
+          );
+        }
+        output += this.encodeSignedValue(deltaValue);
         lastScaledCoordinate[dimension] = scaledValue;
       }
     });
@@ -145,14 +154,20 @@ export class PolylineEncoder {
   // ASCII characters. The flexible-polyline algorithm uses this directly to encode
   // the header bytes, since those are known not to need a sign bit.
   private encodeUnsignedValue(value: number): string {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw Error(
+        "Invalid input. Cannot encode an unsafe or negative unsigned value.",
+      );
+    }
+
     let encodedString = "";
     let remainingValue = value;
     // Loop through each 5-bit chunk in the value, add a 6th bit if there
     // will be additional chunks, and encode to an ASCII value.
     while (remainingValue > 0x1f) {
-      const chunk = (remainingValue & 0x1f) | 0x20;
+      const chunk = (remainingValue % 0x20) + 0x20;
       encodedString += this.encodingTable[chunk];
-      remainingValue >>= 5;
+      remainingValue = Math.floor(remainingValue / 0x20);
     }
     // For the last chunk, set the 6th bit to 0 (since there are no more chunks) and encode it.
     return encodedString + this.encodingTable[remainingValue];
@@ -161,14 +176,26 @@ export class PolylineEncoder {
   // Given a single input signed scaled value, this encodes into a series of
   // ASCII characters.
   private encodeSignedValue(value: number): string {
-    let unsignedValue = value;
-    // Shift the value over by 1 bit to make room for the sign bit at the end.
-    unsignedValue <<= 1;
-    // If the input value is negative, flip all the bits, including the sign bit.
-    if (value < 0) {
-      unsignedValue = ~unsignedValue;
+    if (!Number.isSafeInteger(value)) {
+      throw Error(
+        "Invalid input. Cannot encode a signed value outside the safe integer range.",
+      );
     }
 
-    return this.encodeUnsignedValue(unsignedValue);
+    // Zig-zag encoding normally doubles the magnitude and adds the sign bit.
+    // Encode the first chunk separately so the doubled value never needs to be
+    // represented as a potentially unsafe JavaScript number.
+    const isNegative = value < 0;
+    const magnitude = isNegative ? -value - 1 : value;
+    const firstChunk = (magnitude % 0x10) * 2 + (isNegative ? 1 : 0);
+    const remainingValue = Math.floor(magnitude / 0x10);
+
+    if (remainingValue === 0) {
+      return this.encodingTable[firstChunk];
+    }
+    return (
+      this.encodingTable[firstChunk + 0x20] +
+      this.encodeUnsignedValue(remainingValue)
+    );
   }
 }
